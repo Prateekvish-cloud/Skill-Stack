@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Analytics — Skill Stack{% endblock %}
+{% block content %}
+<div class="app-shell">
+  {% include "sidebar.html" %}
+
+  <main class="dash-main">
+    <div class="section-heading" style="margin-bottom:6px;">
+      <h1 class="dash-title">Performance Analytics & Solved Progression</h1>
+    </div>
+    <p class="dash-sub">Track your exact problem-solving growth over time across all your connected coding platforms.</p>
+
+    <!-- Platform Filter Tabs & Performance Summary Cards -->
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:20px; margin-bottom:16px;">
+      <div style="display:flex; gap:8px;" id="platformTabs">
+        <button class="btn-primary plat-tab active" data-plat="all" onclick="filterAnalytics('all', this)">🌐 All Platforms</button>
+        <button class="btn-secondary plat-tab" data-plat="gfg" onclick="filterAnalytics('gfg', this)" style="color:#2f8d46;">🟢 GeeksforGeeks</button>
+        <button class="btn-secondary plat-tab" data-plat="codechef" onclick="filterAnalytics('codechef', this)" style="color:#c9820f;">⭐ CodeChef</button>
+        <button class="btn-secondary plat-tab" data-plat="leetcode" onclick="filterAnalytics('leetcode', this)" style="color:#ffa726;">⚡ LeetCode</button>
+        <button class="btn-secondary plat-tab" data-plat="hackerrank" onclick="filterAnalytics('hackerrank', this)" style="color:#2ec866;">🟩 HackerRank</button>
+      </div>
+
+      <div style="display:flex; gap:12px;">
+        <div class="stat-box-sm" style="background:rgba(35,36,28,0.6); padding:8px 14px; border-radius:10px; border:1px solid var(--border);">
+          <span style="font-size:11px; color:var(--muted); text-transform:uppercase;">Top Platform Solved</span>
+          <div style="font-weight:700; font-size:16px; color:#39d353;" id="statPeak">
+            {{ peak_solved }} <small style="font-size:11px; color:#2f8d46;">(GFG)</small>
+          </div>
+        </div>
+        <div class="stat-box-sm" style="background:rgba(35,36,28,0.6); padding:8px 14px; border-radius:10px; border:1px solid var(--border);">
+          <span style="font-size:11px; color:var(--muted); text-transform:uppercase;">Total Solved Problems</span>
+          <div style="font-weight:700; font-size:16px; color:#ffa726;" id="statDelta">
+            {{ total_solved }} Solved
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Multi-Platform Rating Progress Line Chart -->
+    <div class="panel" style="margin-top:0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div>
+          <h2 style="margin:0;" id="chartTitle">Multi-Platform Solved Progression</h2>
+          <span style="font-size:11px; color:var(--muted);">Vertical Axis (Y-Axis) = Exact Count of Solved Problems (0 to {{ peak_solved }})</span>
+        </div>
+        <span style="font-size:12px; color:var(--muted);" id="chartSubText">{{ contests|length }} Connected Profiles Tracked</span>
+      </div>
+      <div class="chart-wrap" style="height:280px;"><canvas id="analyticsChart"></canvas></div>
+    </div>
+
+    <!-- Connected Platform Solved Summary Log Table -->
+    <div class="panel" style="margin-top:24px;">
+      <h2>Platform Solved Summary</h2>
+      <div class="lb-row lb-head" style="grid-template-columns: 140px 1.8fr 120px 150px 120px;">
+        <span>Platform</span>
+        <span>Profile / Handle Sync</span>
+        <span>Sync Date</span>
+        <span>Platform Score / Rank</span>
+        <span>Total Solved</span>
+      </div>
+      <div id="contestList">
+        {% for c in contests %}
+        <div class="lb-row contest-row" data-plat="{{ c.platform }}" style="grid-template-columns: 140px 1.8fr 120px 150px 120px;">
+          <span class="plat-badge-pill" style="font-size:11px; font-weight:600; width:fit-content; background:{{ 'rgba(255,167,38,0.15)' if c.platform == 'leetcode' else ('rgba(201,130,15,0.15)' if c.platform == 'codechef' else ('rgba(47,141,70,0.15)' if c.platform in ['gfg','geeksforgeeks'] else 'rgba(46,200,102,0.15)')) }}; color:{{ '#ffa726' if c.platform == 'leetcode' else ('#c9820f' if c.platform == 'codechef' else ('#2f8d46' if c.platform in ['gfg','geeksforgeeks'] else '#2ec866')) }};">
+            {{ c.plat_label }}
+          </span>
+          <span style="font-weight:600; color:var(--ink);">{{ c.name }}</span>
+          <span style="color:var(--muted);">{{ c.date }}</span>
+          <span>{{ c.rank }}</span>
+          <span style="font-weight:700; color:#39d353;">{{ c.rating }}</span>
+        </div>
+        {% else %}
+        <div style="padding:24px; text-align:center; color:var(--muted); font-size:13px;">
+          No profile sync recorded yet. Connect your LeetCode, GeeksforGeeks, CodeChef, or HackerRank account to track solved performance.
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const chartDs = {{ chart_datasets | tojson }};
+
+  const fullDatasets = {
+    'gfg': {
+      label: 'GeeksforGeeks Solved (81)',
+      data: chartDs.gfg,
+      borderColor: '#2f8d46',
+      backgroundColor: 'rgba(47, 141, 70, 0.15)',
+      fill: true,
+      tension: 0.35,
+      borderWidth: 2.5
+    },
+    'codechef': {
+      label: 'CodeChef Solved (36)',
+      data: chartDs.cc,
+      borderColor: '#c9820f',
+      backgroundColor: 'rgba(201, 130, 15, 0.15)',
+      fill: true,
+      tension: 0.35,
+      borderWidth: 2.5
+    },
+    'leetcode': {
+      label: 'LeetCode Solved (27)',
+      data: chartDs.lc,
+      borderColor: '#ffa726',
+      backgroundColor: 'rgba(255, 167, 38, 0.15)',
+      fill: true,
+      tension: 0.35,
+      borderWidth: 2.5
+    },
+    'hackerrank': {
+      label: 'HackerRank Solved (26)',
+      data: chartDs.hr,
+      borderColor: '#2ec866',
+      backgroundColor: 'rgba(46, 200, 102, 0.15)',
+      fill: true,
+      tension: 0.35,
+      borderWidth: 2.5
+    }
+  };
+
+  const chartCtx = document.getElementById('analyticsChart').getContext('2d');
+  const analyticsChart = new Chart(chartCtx, {
+    type: 'line',
+    data: {
+      labels: chartDs.labels,
+      datasets: [fullDatasets.gfg, fullDatasets.codechef, fullDatasets.leetcode, fullDatasets.hackerrank]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#a8a396', font: { size: 12 } } },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.dataset.label.split(' ')[0] + ': ' + context.parsed.y + ' Problems Solved';
+            }
+          }
+        }
+      },
+      scales: {
+        y: { 
+          beginAtZero: true,
+          title: { display: true, text: 'Problems Solved', color: '#a8a396' },
+          grid: { color: 'rgba(86, 84, 73, 0.3)' }, 
+          ticks: { color: '#a8a396', stepSize: 10 } 
+        },
+        x: { grid: { color: 'rgba(86, 84, 73, 0.3)' }, ticks: { color: '#a8a396' } }
+      }
+    }
+  });
+
+  function filterAnalytics(plat, btnEl) {
+    document.querySelectorAll('.plat-tab').forEach(b => b.classList.remove('active', 'btn-primary'));
+    document.querySelectorAll('.plat-tab').forEach(b => b.classList.add('btn-secondary'));
+    btnEl.classList.remove('btn-secondary');
+    btnEl.classList.add('btn-primary', 'active');
+
+    const rows = document.querySelectorAll('.contest-row');
+    rows.forEach(r => {
+      if (plat === 'all' || r.getAttribute('data-plat') === plat) {
+        r.style.display = 'grid';
+      } else {
+        r.style.display = 'none';
+      }
+    });
+
+    if (plat === 'all') {
+      analyticsChart.data.datasets = [fullDatasets.gfg, fullDatasets.codechef, fullDatasets.leetcode, fullDatasets.hackerrank];
+    } else if (fullDatasets[plat]) {
+      analyticsChart.data.datasets = [fullDatasets[plat]];
+    }
+    analyticsChart.update();
+  }
+</script>
+{% endblock %}

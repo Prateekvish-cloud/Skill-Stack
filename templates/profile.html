@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}My Profile — Skill Stack{% endblock %}
+{% block content %}
+<div class="app-shell">
+  {% include "sidebar.html" %}
+
+  <main class="dash-main">
+    <div class="section-heading" style="margin-bottom:6px;">
+      <h1 class="dash-title">My Developer Profile</h1>
+      <div style="display:flex; gap:10px;">
+        <a href="{{ url_for('public_portfolio', username=profile.username) }}" target="_blank" class="btn-primary" style="padding:8px 16px; font-size:13px; text-decoration:none; display:inline-block;">🔗 Share Public Portfolio</a>
+        <a href="{{ url_for('export_resume') }}" class="btn-secondary" style="padding:8px 16px; font-size:13px; text-decoration:none; display:inline-block;">📄 Export Resume</a>
+      </div>
+    </div>
+    <p class="dash-sub">Manage your public bio, academic details, and recruiter share settings.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div style="padding:10px 14px; border-radius:8px; font-size:13px; margin-top:14px; background:{{ 'rgba(255,82,82,0.15)' if category == 'error' else 'rgba(57,211,83,0.15)' }}; border:1px solid {{ '#ff5252' if category == 'error' else '#39d353' }}; color:{{ '#ff5252' if category == 'error' else '#39d353' }}; font-weight:600;">
+            {{ msg }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- Public Profile Card Preview -->
+    <div class="dash-profile-card" style="margin-top:20px;">
+      <div class="dash-user-left">
+        <div class="dash-avatar-large" style="background:#D8CFBC; color:#1e1f19; font-weight:800;">{{ profile.name[:2].upper() }}</div>
+        <div class="dash-user-info">
+          <h2>{{ profile.name }} <span class="plat-badge-pill" style="font-size:12px;">{{ profile.badge if profile.badge else 'Learner 🌱' }}</span></h2>
+
+          <p>{{ profile.headline }}</p>
+          <div class="dash-user-meta">
+            <span>📍 {{ profile.location }}</span>
+            <span>🎓 {{ profile.college }} ({{ profile.grad_year }})</span>
+          </div>
+          <p style="font-size:13px; color:var(--muted); margin-top:8px; max-width:600px;">{{ profile.bio }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Profile Form -->
+    <div class="panel" style="margin-top:24px;">
+      <h2>Edit Profile Information</h2>
+      <form action="{{ url_for('user_profile') }}" method="POST" class="auth-form" style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:18px;">
+        <div class="field">
+          <label>Full Name</label>
+          <input type="text" name="name" value="{{ profile.name }}" required />
+        </div>
+
+        <div class="field">
+          <label>Public Username / Handle</label>
+          <input type="text" name="username" value="{{ profile.username }}" required />
+        </div>
+
+        <div class="field" style="grid-column: span 2;">
+          <label>Headline</label>
+          <input type="text" name="headline" value="{{ profile.headline }}" required />
+        </div>
+
+        <div class="field">
+          <label>University / College</label>
+          <input type="text" name="college" value="{{ profile.college }}" />
+        </div>
+
+        <div class="field">
+          <label>Location</label>
+          <input type="text" name="location" value="{{ profile.location }}" />
+        </div>
+
+        <div class="field" style="grid-column: span 2;">
+          <label>Bio Summary</label>
+          <textarea name="bio" rows="3" style="width:100%; padding:11px 13px; border:1px solid var(--border); border-radius:10px; font-size:14px; background:rgba(15,32,27,0.8); color:var(--ink); font-family:var(--font-sans);">{{ profile.bio }}</textarea>
+        </div>
+
+        <div class="field">
+          <label>GitHub Profile URL</label>
+          <input type="url" name="github" value="{{ profile.github }}" />
+        </div>
+
+        <div class="field">
+          <label>LinkedIn Profile URL</label>
+          <input type="url" name="linkedin" value="{{ profile.linkedin }}" />
+        </div>
+
+        <div style="grid-column: span 2; display:flex; justify-content:flex-end; margin-top:10px;">
+          <button type="submit" class="btn-primary" style="padding:10px 24px;">Save Profile Changes</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
+{% endblock %}
+

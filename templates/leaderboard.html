@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard — Skill Stack{% endblock %}
+{% block content %}
+<div class="app-shell">
+  {% include "sidebar.html" %}
+
+  <main class="dash-main">
+    <div class="section-heading" style="margin-bottom:6px;">
+      <h1 class="dash-title">Competitive Leaderboard</h1>
+    </div>
+    <p class="dash-sub">Rankings based on unified problem-solving scores across LeetCode, CodeChef, and GitHub.</p>
+
+    <!-- Top 3 Podium Cards — dynamic from real leaderboard data -->
+    {% set ranked_users = leaderboard_users | selectattr('score_val', 'gt', 0) | list %}
+    <div class="stat-preview-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top:20px;">
+      {% if ranked_users|length >= 3 %}
+        {% set u1 = ranked_users[0] %}
+        {% set u2 = ranked_users[1] %}
+        {% set u3 = ranked_users[2] %}
+        <!-- 2nd Place -->
+        <div class="panel-alt" onclick="showCoderDetails('{{ u2.name }}', '{{ u2.college }}', {{ u2.solved }}, '{{ u2.score }}', '{{ u2.badge }}')" style="text-align:center; position:relative; border-color:rgba(201,209,217,0.3); cursor:pointer;">
+          <div style="font-size:32px; margin-bottom:4px;">🥈</div>
+          <h3 style="font-family:var(--font-display); font-size:16px; margin:0 0 2px;">{{ u2.name }}</h3>
+          <p style="font-size:12px; color:var(--muted); margin-bottom:8px;">{{ u2.college }} • {{ u2.badge }}</p>
+          <div style="font-size:20px; font-weight:700; color:var(--ink);">{{ u2.score }}</div>
+        </div>
+        <!-- 1st Place (Center Highlight) -->
+        <div class="panel-alt" onclick="showCoderDetails('{{ u1.name }}', '{{ u1.college }}', {{ u1.solved }}, '{{ u1.score }}', '{{ u1.badge }}')" style="text-align:center; position:relative; border-color:rgba(216,207,188,0.5); background:linear-gradient(135deg, rgba(40,42,34,0.9), rgba(20,21,16,0.9)); transform:scale(1.04); cursor:pointer;">
+          <div style="font-size:36px; margin-bottom:4px;">🥇</div>
+          <h3 style="font-family:var(--font-display); font-size:18px; margin:0 0 2px; color:#FFFBF4;">{{ u1.name }}</h3>
+          <p style="font-size:12px; color:var(--muted); margin-bottom:8px;">{{ u1.college }} • {{ u1.badge }}</p>
+          <div style="font-size:24px; font-weight:700; color:#D8CFBC;">{{ u1.score }}</div>
+        </div>
+        <!-- 3rd Place -->
+        <div class="panel-alt" onclick="showCoderDetails('{{ u3.name }}', '{{ u3.college }}', {{ u3.solved }}, '{{ u3.score }}', '{{ u3.badge }}')" style="text-align:center; position:relative; border-color:rgba(86,84,73,0.4); cursor:pointer;">
+          <div style="font-size:32px; margin-bottom:4px;">🥉</div>
+          <h3 style="font-family:var(--font-display); font-size:16px; margin:0 0 2px;">{{ u3.name }}</h3>
+          <p style="font-size:12px; color:var(--muted); margin-bottom:8px;">{{ u3.college }} • {{ u3.badge }}</p>
+          <div style="font-size:20px; font-weight:700; color:var(--ink);">{{ u3.score }}</div>
+        </div>
+      {% elif ranked_users|length > 0 %}
+        {% for u in ranked_users %}
+        <div class="panel-alt" style="text-align:center; border-color:rgba(216,207,188,0.3);">
+          <div style="font-size:32px; margin-bottom:4px;">{{ u.medal }}</div>
+          <h3 style="font-family:var(--font-display); font-size:16px; margin:0 0 2px;">{{ u.name }}</h3>
+          <p style="font-size:12px; color:var(--muted); margin-bottom:8px;">{{ u.college }} • {{ u.badge }}</p>
+          <div style="font-size:20px; font-weight:700; color:var(--ink);">{{ u.score }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="grid-column: span 3; padding:32px; text-align:center; color:var(--muted); font-size:13px; background:rgba(30,31,25,0.4); border:1px dashed rgba(216,207,188,0.2); border-radius:12px;">
+          No ranked users yet. Connect your coding profiles to appear on the leaderboard.
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Leaderboard Table & Filters -->
+    <div class="panel" style="margin-top:28px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+        <div style="display:flex; gap:8px;">
+          <button class="btn-primary" style="font-size:12.5px; padding:6px 14px;">🌐 Global</button>
+          <button class="btn-secondary" style="font-size:12.5px; padding:6px 14px;">🎓 IMS Campus</button>
+        </div>
+        <input type="text" id="lbSearch" placeholder="🔍 Search coder or university..." onkeyup="filterLeaderboard()" style="padding:7px 14px; border:1px solid var(--border); border-radius:8px; font-size:13px; background:rgba(15,32,27,0.8); color:var(--ink); width:240px;" />
+      </div>
+
+      <div class="lb-row lb-head">
+        <span>Rank</span>
+        <span>Coder Name</span>
+        <span>College / University</span>
+        <span>Solved</span>
+        <span>Badge</span>
+        <span>Unified Score</span>
+      </div>
+
+      <div id="lbList">
+        {% for u in leaderboard_users %}
+        <div class="lb-row {{ 'is-me' if u.is_me else '' }}" onclick="showCoderDetails('{{ u.name }}', '{{ u.college }}', {{ u.solved }}, '{{ u.score }}', '{{ u.badge }}')" style="cursor:pointer; transition: background 0.15s ease;" title="Click to view coder profile">
+          <span class="lb-rank" style="font-weight:700; font-size:15px;">{{ u.medal }}</span>
+          <span style="font-weight:600; color:var(--ink); text-decoration:underline; text-decoration-color:rgba(216,207,188,0.4);">{{ u.name }} {{ '(You)' if u.is_me else '' }}</span>
+          <span style="color:var(--muted);">{{ u.college }}</span>
+          <span>{{ u.solved }}</span>
+          <span>{{ u.badge }}</span>
+          <span style="font-weight:700; color:#D8CFBC;">{{ u.score }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Coder Profile Preview Modal -->
+<div class="modal-backdrop" id="coderModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-plat-icon" style="background:rgba(216,207,188,0.2); color:#D8CFBC;">🏆</div>
+        <div>
+          <h3 id="coderModalName" style="margin:0; font-size:18px; color:var(--ink);">Coder Details</h3>
+          <p id="coderModalSub" style="margin:0; font-size:12px; color:var(--muted);">Competitive Profile Overview</p>
+        </div>
+      </div>
+      <button class="modal-close-btn" onclick="closeCoderModal()">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <div style="background:rgba(35,36,28,0.6); padding:16px; border-radius:14px; border:1px solid var(--border); margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:12px; color:var(--muted);" id="coderModalCollege">IIT Delhi</span>
+          <span class="plat-badge-pill" id="coderModalBadge">Guardian 🏆</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px;">
+          <div>
+            <div style="font-size:11px; color:var(--muted);">TOTAL SOLVED</div>
+            <div style="font-size:22px; font-weight:700; color:var(--ink);" id="coderModalSolved">1,420</div>
+          </div>
+          <div>
+            <div style="font-size:11px; color:var(--muted);">UNIFIED SCORE</div>
+            <div style="font-size:22px; font-weight:700; color:#D8CFBC;" id="coderModalScore">2,840 pts</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:12.5px; color:var(--muted); line-height:1.5;">
+        ⚡ <strong>Platform Performance:</strong> Active problem solver across LeetCode, CodeChef & GitHub with top 1% global ranking.
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeCoderModal()" style="padding:8px 16px; font-size:13px;">Close</button>
+      <a href="{{ url_for('user_profile') }}" class="btn-primary" style="padding:8px 20px; font-size:13px; text-decoration:none;">View Full Profile →</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function filterLeaderboard() {
+    const q = document.getElementById('lbSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('#lbList .lb-row');
+    rows.forEach(row => {
+      const text = row.innerText.toLowerCase();
+      if (text.includes(q)) row.style.display = 'grid';
+      else row.style.display = 'none';
+    });
+  }
+
+  function showCoderDetails(name, college, solved, score, badge) {
+    document.getElementById('coderModalName').textContent = name;
+    document.getElementById('coderModalCollege').textContent = '🎓 ' + college;
+    document.getElementById('coderModalSolved').textContent = solved.toLocaleString();
+    document.getElementById('coderModalScore').textContent = score;
+    document.getElementById('coderModalBadge').textContent = badge;
+    document.getElementById('coderModal').classList.add('active');
+  }
+
+  function closeCoderModal() {
+    document.getElementById('coderModal').classList.remove('active');
+  }
+</script>
+{% endblock %}

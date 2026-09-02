@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Log in — Skill Stack{% endblock %}
+{% block content %}
+<div class="auth-screen">
+  <div class="auth-card" style="max-width:420px;">
+    <div class="brand" style="margin-bottom:12px;">Skill<span>Stack</span></div>
+    
+    <!-- Dual Role Login Tab Bar -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:rgba(35,36,28,0.8); padding:4px; border-radius:10px; border:1px solid rgba(216,207,188,0.25); margin-bottom:20px;">
+      <button type="button" id="tabStudentBtn" onclick="switchLoginRole('student')" style="padding:8px 10px; font-size:12.5px; font-weight:700; border:none; border-radius:7px; cursor:pointer; background:#D8CFBC; color:#1e1f19; transition:all 0.2s;">
+        🎓 Student Login
+      </button>
+      <button type="button" id="tabAdminBtn" onclick="switchLoginRole('admin')" style="padding:8px 10px; font-size:12.5px; font-weight:700; border:none; border-radius:7px; cursor:pointer; background:transparent; color:var(--muted); transition:all 0.2s;">
+        👑 Educator Admin
+      </button>
+    </div>
+
+    <!-- Form 1: Student Login Form -->
+    <div id="studentLoginForm">
+      <h1 style="font-size:22px; margin:0 0 4px 0;">Student Portal</h1>
+      <p class="auth-sub" style="margin-bottom:16px;">Log in to access your coding profile, badges, and roadmap.</p>
+
+      <form method="POST" action="{{ url_for('login') }}" class="auth-form">
+        <div class="field">
+          <label for="email">Student Email</label>
+          <input type="email" id="email" name="email" required placeholder="you@example.com" />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required placeholder="••••••••" />
+        </div>
+        <button type="submit" class="btn-primary" style="padding:12px; font-size:13.5px; font-weight:700;">Log in to Student Dashboard ↗</button>
+      </form>
+
+      <p class="auth-switch" style="margin-top:16px;">New student? <a href="{{ url_for('signup') }}">Create an account</a></p>
+    </div>
+
+    <!-- Form 2: Admin Login Form (Hidden by default) -->
+    <div id="adminLoginForm" style="display:none;">
+      <h1 style="font-size:22px; margin:0 0 4px 0;">Educator Portal</h1>
+      <p class="auth-sub" style="margin-bottom:16px;">Secure login for institution managers & professors.</p>
+
+      <form method="POST" action="{{ url_for('admin_login') }}" class="auth-form">
+        <div class="field">
+          <label>Admin Email Address</label>
+          <input type="email" name="email" value="admin@skillstack.com" required placeholder="admin@skillstack.com" />
+        </div>
+        <div class="field">
+          <label>Security Key / Password</label>
+          <input type="password" name="password" value="admin123" required placeholder="••••••••" />
+        </div>
+        <button type="submit" class="btn-primary" style="padding:12px; font-size:13.5px; font-weight:700;">
+          🔑 Authenticate Admin Access ↗
+        </button>
+      </form>
+
+      <p class="auth-switch" style="margin-top:16px;">Default Security Key: <strong>admin123</strong></p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function switchLoginRole(role) {
+    const studentBtn = document.getElementById('tabStudentBtn');
+    const adminBtn = document.getElementById('tabAdminBtn');
+    const studentForm = document.getElementById('studentLoginForm');
+    const adminForm = document.getElementById('adminLoginForm');
+
+    if (role === 'student') {
+      studentBtn.style.background = '#D8CFBC';
+      studentBtn.style.color = '#1e1f19';
+      adminBtn.style.background = 'transparent';
+      adminBtn.style.color = 'var(--muted)';
+
+      studentForm.style.display = 'block';
+      adminForm.style.display = 'none';
+    } else {
+      adminBtn.style.background = '#D8CFBC';
+      adminBtn.style.color = '#1e1f19';
+      studentBtn.style.background = 'transparent';
+      studentBtn.style.color = 'var(--muted)';
+
+      adminForm.style.display = 'block';
+      studentForm.style.display = 'none';
+    }
+  }
+
+  if (window.location.search.includes('role=admin')) {
+    switchLoginRole('admin');
+  }
+</script>
+{% endblock %}

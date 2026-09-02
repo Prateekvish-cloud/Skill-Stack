@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% block title %}Coding Profiles — Skill Stack{% endblock %}
+{% block content %}
+<div class="app-shell">
+  {% include "sidebar.html" %}
+
+  <main class="dash-main">
+    <div class="section-heading" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h1 class="dash-title">Coding Profiles Management</h1>
+        <p class="dash-sub" style="margin-top:4px;">Link your competitive coding and version control handles to automatically sync stats and badges.</p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-secondary" id="syncAllBtn" style="padding:9px 16px; font-size:13.5px;" onclick="syncAllPlatforms()">⚡ Sync All Platforms</button>
+        <button class="btn-primary" style="padding:9px 18px; font-size:13.5px;" onclick="openConnectModal()">+ Connect Platform</button>
+      </div>
+    </div>
+
+    <!-- Platform Cards Grid -->
+    <div class="platform-detail-grid" style="margin-top:20px;">
+      {% for p in platforms %}
+      <div class="plat-detail-card">
+        <div>
+          <div class="plat-detail-head">
+            <div class="plat-brand">
+              <div class="platform-icon" style="background:{{ p.bg }}; color:{{ p.color }};">{{ p.initial }}</div>
+              <strong>{{ p.name }}</strong>
+            </div>
+            <span class="plat-badge-pill" style="color:{{ '#D8CFBC' if p.connected else 'var(--muted)' }}; border-color:{{ 'rgba(216,207,188,0.3)' if p.connected else 'var(--border)' }};">
+              {{ 'Active ✓' if p.connected else 'Not Linked' }}
+            </span>
+          </div>
+          
+          <div style="font-size:13px; color:var(--muted); margin-bottom:4px;">Handle: <strong style="color:var(--ink);">{{ p.handle }}</strong></div>
+          <div class="plat-big-rating" style="font-size:22px;">{{ p.rating }}</div>
+          <div class="plat-sub-info">{{ p.solved }}</div>
+        </div>
+
+        <div style="border-top:1px solid rgba(86,84,73,0.4); padding-top:12px; margin-top:12px; display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:11.5px; color:var(--muted);">Synced {{ p.last_synced }}</span>
+          <button class="btn-secondary" style="font-size:12px; padding:5px 12px;" onclick="openConnectModal('{{ p.name }}', '{{ p.handle }}')">
+            {{ 'Edit Handle' if p.connected else '+ Connect' }}
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Sync Logs & Connection Status Table -->
+    <div class="panel" style="margin-top:28px;">
+      <h2>Platform Sync Activity Log</h2>
+      <div class="lb-row lb-head" style="grid-template-columns: 140px 160px 1fr 120px;">
+        <span>Platform</span>
+        <span>Status</span>
+        <span>Sync Log / Message</span>
+        <span>Time</span>
+      </div>
+      {% for log in sync_logs %}
+      <div class="lb-row" style="grid-template-columns: 140px 160px 1fr 120px;">
+        <span style="font-weight:600;">{{ log.platform }}</span>
+        <span style="color:{{ '#39d353' if '200' in log.status or 'Synced' in log.status else '#e0505a' }}; font-weight:600;">{{ log.status }}</span>
+        <span>{{ log.message }}</span>
+        <span style="color:var(--muted); font-size:12px;">{{ log.time }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+  </main>
+</div>
+
+<!-- Connect Platform Handle Modal -->
+<div class="modal-backdrop" id="connectModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-plat-icon" id="modalPlatIcon" style="background:rgba(255, 167, 38, 0.2); color:#ffa726;">LC</div>
+        <div>
+          <h3 id="modalTitle" style="margin:0; font-size:16px; color:var(--ink);">Connect Platform</h3>
+          <p id="modalSub" style="margin:0; font-size:12px; color:var(--muted);">Sync live ratings and problem counts</p>
+        </div>
+      </div>
+      <button class="modal-close-btn" onclick="closeConnectModal()">&times;</button>
+    </div>
+    <form id="connectForm" onsubmit="handleConnectSubmit(event)">
+      <input type="hidden" id="modalPlatformKey" value="leetcode">
+      <div class="modal-body">
+        <div class="modal-input-group" id="platformSelectGroup" style="margin-bottom:14px;">
+          <label>Target Platform</label>
+          <select class="modal-input" id="modalPlatformSelect" onchange="onPlatformSelectChange(this.value)">
+            <option value="leetcode">LeetCode</option>
+            <option value="github">GitHub</option>
+            <option value="codeforces">Codeforces</option>
+            <option value="codechef">CodeChef</option>
+            <option value="geeksforgeeks">GeeksforGeeks</option>
+            <option value="hackerrank">HackerRank</option>
+          </select>
+        </div>
+        <div class="modal-input-group">
+          <label id="modalHandleLabel">Platform Username / Handle</label>
+          <input type="text" class="modal-input" id="modalHandleInput" placeholder="e.g. tourist" required autocomplete="off">
+        </div>
+        <div id="modalStatusMsg" style="font-size:12px; display:none; padding:8px 12px; border-radius:8px; margin-top:10px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeConnectModal()" style="padding:8px 16px; font-size:13px;">Cancel</button>
+        <button type="submit" class="btn-primary" id="modalSubmitBtn" style="padding:8px 20px; font-size:13px;">
+          <span id="btnText">Connect & Sync ⚡</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const platformConfigs = {
+    'leetcode': { name: 'LeetCode', initial: 'LC', bg: 'rgba(255, 167, 38, 0.2)', color: '#ffa726' },
+    'github': { name: 'GitHub', initial: 'GH', bg: 'rgba(201, 209, 217, 0.2)', color: '#c9d1d9' },
+    'codeforces': { name: 'Codeforces', initial: 'CF', bg: 'rgba(224, 80, 90, 0.2)', color: '#e0505a' },
+    'codechef': { name: 'CodeChef', initial: 'CC', bg: 'rgba(201, 130, 15, 0.2)', color: '#c9820f' },
+    'geeksforgeeks': { name: 'GeeksforGeeks', initial: 'GFG', bg: 'rgba(47, 141, 70, 0.2)', color: '#2f8d46' },
+    'hackerrank': { name: 'HackerRank', initial: 'HR', bg: 'rgba(46, 200, 102, 0.2)', color: '#2ec866' }
+  };
+
+  function updateModalHeader(platformKey) {
+    const key = (platformKey || 'leetcode').toLowerCase().replace(/\s+/g, '');
+    const config = platformConfigs[key] || platformConfigs['leetcode'];
+    document.getElementById('modalTitle').textContent = `Connect ${config.name}`;
+    document.getElementById('modalPlatIcon').textContent = config.initial;
+    document.getElementById('modalPlatIcon').style.background = config.bg;
+    document.getElementById('modalPlatIcon').style.color = config.color;
+  }
+
+  function onPlatformSelectChange(val) {
+    document.getElementById('modalPlatformKey').value = val;
+    updateModalHeader(val);
+  }
+
+  function openConnectModal(platformKey, existingHandle) {
+    const rawKey = (platformKey || '').toLowerCase().replace(/\s+/g, '');
+    const key = rawKey || 'leetcode';
+    
+    document.getElementById('modalPlatformKey').value = key;
+    document.getElementById('modalPlatformSelect').value = key;
+    updateModalHeader(key);
+
+    document.getElementById('modalHandleInput').value = (existingHandle && existingHandle !== 'Not linked' && existingHandle !== 'Add handle') ? existingHandle.replace('@', '') : '';
+    document.getElementById('modalStatusMsg').style.display = 'none';
+    document.getElementById('connectModal').classList.add('active');
+  }
+
+  function closeConnectModal() {
+    document.getElementById('connectModal').classList.remove('active');
+  }
+
+  async function handleConnectSubmit(e) {
+    e.preventDefault();
+    const platform = document.getElementById('modalPlatformKey').value;
+    const handle = document.getElementById('modalHandleInput').value.trim();
+    const statusMsg = document.getElementById('modalStatusMsg');
+    const submitBtn = document.getElementById('modalSubmitBtn');
+    const btnText = document.getElementById('btnText');
+
+    if (!handle) return;
+
+    submitBtn.disabled = true;
+    btnText.innerHTML = '<span class="spinner-sm"></span> Syncing...';
+    statusMsg.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/connect-platform', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform, handle })
+      });
+
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        if (res.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        throw new Error(`Server session expired or returned invalid response (${res.status}). Please log in again.`);
+      }
+
+      const data = await res.json();
+
+      if (data.success) {
+        statusMsg.style.display = 'block';
+        statusMsg.style.background = 'rgba(57, 211, 83, 0.15)';
+        statusMsg.style.color = '#39d353';
+        statusMsg.style.border = '1px solid rgba(57, 211, 83, 0.3)';
+        statusMsg.textContent = data.message;
+        setTimeout(() => {
+          closeConnectModal();
+          location.reload();
+        }, 1200);
+      } else {
+        throw new Error(data.error || 'Failed to connect handle.');
+      }
+    } catch (err) {
+      statusMsg.style.display = 'block';
+      statusMsg.style.background = 'rgba(224, 80, 90, 0.15)';
+      statusMsg.style.color = '#e0505a';
+      statusMsg.style.border = '1px solid rgba(224, 80, 90, 0.3)';
+      statusMsg.textContent = err.message;
+    } finally {
+      submitBtn.disabled = false;
+      btnText.textContent = 'Connect & Sync ⚡';
+    }
+  }
+
+  async function handleBatchConnect(e) {
+    if (e) e.preventDefault();
+    const btn = document.getElementById('batchSyncBtn');
+    const btnText = document.getElementById('batchBtnText');
+    const statusMsg = document.getElementById('batchStatusMsg');
+
+    const payload = {
+      leetcode: document.getElementById('batchLeetcode').value.trim(),
+      github: document.getElementById('batchGithub').value.trim(),
+      hackerrank: document.getElementById('batchHackerrank').value.trim(),
+      codeforces: document.getElementById('batchCodeforces').value.trim(),
+      codechef: document.getElementById('batchCodechef').value.trim(),
+      geeksforgeeks: document.getElementById('batchGeeksforgeeks').value.trim(),
+    };
+
+    btn.disabled = true;
+    btnText.innerHTML = '⚡ Fetching Live Profiles...';
+    statusMsg.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/batch-connect-platforms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        statusMsg.style.display = 'block';
+        statusMsg.style.background = 'rgba(57, 211, 83, 0.15)';
+        statusMsg.style.color = '#39d353';
+        statusMsg.style.border = '1px solid rgba(57, 211, 83, 0.3)';
+        statusMsg.textContent = data.message;
+        setTimeout(() => location.reload(), 1200);
+      } else {
+        throw new Error(data.error || 'Failed to sync handles.');
+      }
+    } catch (err) {
+      statusMsg.style.display = 'block';
+      statusMsg.style.background = 'rgba(224, 80, 90, 0.15)';
+      statusMsg.style.color = '#e0505a';
+      statusMsg.style.border = '1px solid rgba(224, 80, 90, 0.3)';
+      statusMsg.textContent = err.message;
+      btn.disabled = false;
+      btnText.textContent = 'Save & Sync All Handles ⚡';
+    }
+  }
+
+  async function syncAllPlatforms() {
+    const btn = document.getElementById('syncAllBtn');
+    if (!btn) return;
+    btn.disabled = true;
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '⚡ Syncing All...';
+
+    try {
+      const res = await fetch('/api/sync-stats', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        btn.innerHTML = '✓ Synced!';
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        alert(data.error || 'Failed to sync platforms');
+        btn.innerHTML = oldText;
+        btn.disabled = false;
+      }
+    } catch (err) {
+      alert('Error syncing platforms: ' + err.message);
+      btn.innerHTML = oldText;
+      btn.disabled = false;
+    }
+  }
+</script>
+{% endblock %}
+

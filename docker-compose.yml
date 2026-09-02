@@ -1,0 +1,33 @@
+services:
+  web:
+    build: .
+    container_name: skillstack_web
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=skillstack-super-secret-key-2024
+      - MYSQL_HOST=db
+      - MYSQL_USER=skilluser
+      - MYSQL_PASSWORD=skillpass
+      - MYSQL_DB=skill_stack
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    container_name: skillstack_db
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpass
+      - MYSQL_DATABASE=skill_stack
+      - MYSQL_USER=skilluser
+      - MYSQL_PASSWORD=skillpass
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:

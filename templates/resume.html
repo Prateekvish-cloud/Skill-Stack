@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ profile.name }} — Developer Resume & Portfolio</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: #0d0e0b;
+      color: #e6e3da;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .resume-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(17, 18, 13, 0.95);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(216, 207, 188, 0.2);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .resume-container {
+      max-width: 860px;
+      margin: 32px auto 60px;
+      background: rgba(22, 23, 18, 0.9);
+      border: 1px solid rgba(216, 207, 188, 0.3);
+      border-radius: 16px;
+      padding: 40px 48px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), 0 0 40px rgba(216, 207, 188, 0.1);
+    }
+
+    .res-header {
+      border-bottom: 2px solid rgba(216, 207, 188, 0.25);
+      padding-bottom: 24px;
+      margin-bottom: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .res-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0 0 4px;
+      color: #FFFBF4;
+    }
+
+    .res-title {
+      font-size: 15px;
+      color: #D8CFBC;
+      font-weight: 600;
+      margin: 0 0 12px;
+    }
+
+    .res-contact-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+
+    .res-contact-links a {
+      color: #D8CFBC;
+      text-decoration: none;
+    }
+
+    .res-section {
+      margin-bottom: 28px;
+    }
+
+    .res-sec-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #D8CFBC;
+      border-bottom: 1px solid rgba(216, 207, 188, 0.2);
+      padding-bottom: 6px;
+      margin-bottom: 16px;
+    }
+
+    .res-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .res-stat-box {
+      background: rgba(35, 36, 28, 0.6);
+      border: 1px solid rgba(216, 207, 188, 0.2);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .res-stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .res-stat-val {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #FFFBF4;
+      margin-top: 4px;
+    }
+
+    .res-proj-card {
+      margin-bottom: 18px;
+    }
+
+    .res-proj-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .res-proj-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFBF4;
+    }
+
+    .res-proj-desc {
+      font-size: 13.5px;
+      color: var(--muted);
+      margin: 6px 0 8px;
+      line-height: 1.5;
+    }
+
+    .res-tags-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .res-tag {
+      font-size: 11px;
+      background: rgba(216, 207, 188, 0.12);
+      color: #D8CFBC;
+      padding: 3px 9px;
+      border-radius: 6px;
+      border: 1px solid rgba(216, 207, 188, 0.25);
+    }
+
+    @media print {
+      .resume-toolbar, .floating-stack { display: none !important; }
+      body { background: #fff !important; color: #111 !important; }
+      .resume-container {
+        box-shadow: none !important;
+        border: none !important;
+        background: #fff !important;
+        color: #111 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+      }
+      .res-name, .res-stat-val, .res-proj-name { color: #000 !important; }
+      .res-title, .res-sec-title, .res-tag { color: #333 !important; border-color: #ccc !important; }
+      .res-stat-box { background: #f8f9fa !important; border-color: #ddd !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Printable Floating Control Bar -->
+  <div class="resume-toolbar">
+    <a href="{{ url_for('dashboard') }}" class="btn-ghost" style="font-size:13px; padding:7px 16px;">← Back to Dashboard</a>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <span style="font-size:12px; color:var(--muted);">Ready for ATS & PDF Download</span>
+      <button class="btn-primary" style="font-size:13.5px; padding:8px 22px;" onclick="window.print()">🖨️ Save as PDF / Print</button>
+    </div>
+  </div>
+
+  <main class="resume-container">
+
+    <!-- Header Block -->
+    <header class="res-header">
+      <div>
+        <h1 class="res-name">{{ profile.name }}</h1>
+        <p class="res-title">{{ profile.headline }}</p>
+        <div class="res-contact-links">
+          <span>📍 {{ profile.location }}</span>
+          <span>🎓 {{ profile.college }} (Class of {{ profile.grad_year }})</span>
+          <span>🐙 <a href="{{ profile.github }}" target="_blank">{% if profile.github_handle %}github.com/{{ profile.github_handle }}{% elif profile.github %}{{ profile.github }}{% else %}Not connected{% endif %}</a></span>
+          {% if profile.leetcode_handle %}<span>⚡ <a href="{{ profile.leetcode_url }}" target="_blank">leetcode.com/{{ profile.leetcode_handle }}</a></span>{% endif %}
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div class="plat-badge-pill" style="font-size:13px; padding:6px 14px; background:rgba(216,207,188,0.15); color:#D8CFBC; border:1px solid rgba(216,207,188,0.3);">
+          Unified Score: {{ profile.unified_score }} pts
+        </div>
+      </div>
+    </header>
+
+    <!-- Competitive Coding Highlights -->
+    <section class="res-section">
+      <h2 class="res-sec-title">Competitive Programming & Achievements</h2>
+      <div class="res-stats-grid">
+        <div class="res-stat-box">
+          <div class="res-stat-label">Total Solved</div>
+          <div class="res-stat-val">{{ profile.total_solved }}+</div>
+        </div>
+        <div class="res-stat-box">
+          <div class="res-stat-label">LeetCode Rating</div>
+          <div class="res-stat-val" style="color:#ffa726;">{% if profile.lc_rating %}{{ profile.lc_rating }}{% else %}<span style="font-size:13px;color:var(--muted);">Not connected</span>{% endif %}</div>
+        </div>
+        <div class="res-stat-box">
+          <div class="res-stat-label">CodeChef Rating</div>
+          <div class="res-stat-val" style="color:#c9820f;">{% if profile.cc_rating %}{{ profile.cc_rating }}{% else %}<span style="font-size:13px;color:var(--muted);">Not connected</span>{% endif %}</div>
+        </div>
+        <div class="res-stat-box">
+          <div class="res-stat-label">Global Rank</div>
+          <div class="res-stat-val" style="color:#D8CFBC;">{{ profile.leaderboard_rank }}</div>
+        </div>
+      </div>
+      <p style="font-size:13px; color:var(--muted); margin:0;">
+        Active problem solver{% if profile.streak_days > 0 %} with a <strong>{{ profile.streak_days }}-day active streak</strong>{% endif %}. Solved <strong>{{ profile.total_solved }}</strong> algorithmic problems across connected coding platforms.
+      </p>
+    </section>
+
+    <!-- Technical Skills Matrix -->
+    <section class="res-section">
+      <h2 class="res-sec-title">Technical Skill Matrix</h2>
+      <div style="display:grid; grid-template-columns: 140px 1fr; gap:12px; font-size:13.5px; line-height:1.6;">
+        <span style="font-weight:700; color:#D8CFBC;">Core Algorithms:</span>
+        <span>Arrays & Hashing (Master 86%), Dynamic Programming (70%), Graph BFS/DFS, Trees & Binary Search, Greedy Algorithms.</span>
+
+        <span style="font-weight:700; color:#D8CFBC;">Languages:</span>
+        <span>Python, JavaScript (ES6+), C++, TypeScript, SQL, HTML5/CSS3.</span>
+
+        <span style="font-weight:700; color:#D8CFBC;">Frameworks & DB:</span>
+        <span>Flask, FastAPI, React, Node.js, MySQL, Redis, Three.js (WebGL), Chart.js.</span>
+
+        <span style="font-weight:700; color:#D8CFBC;">Developer Tools:</span>
+        <span>Docker, Git & GitHub Actions, Postman, Linux Command Line, VS Code.</span>
+      </div>
+    </section>
+
+    <!-- Featured Projects -->
+    <section class="res-section">
+      <h2 class="res-sec-title">Featured Projects</h2>
+
+      {% for proj in projects %}
+      <div class="res-proj-card">
+        <div class="res-proj-header">
+          <span class="res-proj-name">{{ proj.title }} <small style="font-weight:normal; font-size:12px; color:var(--muted);">• ⭐ {{ proj.stars }} Stars</small></span>
+          <span style="font-size:12px; color:#D8CFBC;">{{ proj.repo_url }}</span>
+        </div>
+        <p class="res-proj-desc">{{ proj.description }}</p>
+        <div class="res-tags-row">
+          {% for tag in proj.tags %}
+          <span class="res-tag">{{ tag }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </section>
+
+    <!-- Education & Certifications -->
+    <section class="res-section">
+      <h2 class="res-sec-title">Education & Honors</h2>
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+        <span style="font-weight:700; font-size:15px; color:#FFFBF4;">IMS Engineering College</span>
+        <span style="font-size:13px; color:#D8CFBC;">Expected 2025</span>
+      </div>
+      <p style="font-size:13.5px; color:var(--muted); margin:0 0 10px;">Bachelor of Technology (B.Tech) in Computer Science & Engineering</p>
+      <ul style="margin:0; padding-left:18px; font-size:13px; color:var(--muted); line-height:1.6;">
+        <li>Ranked <strong>#312 out of 24,000+</strong> participants in LeetCode Weekly Contest 409.</li>
+        <li>Ranked <strong>#142 out of 12,500+</strong> competitive coders in CodeChef Starters 120.</li>
+        <li>Unlocked LeetCode Knight Shield Badge & 50-Day Active Streak 2024 Honor Badge.</li>
+      </ul>
+    </section>
+
+  </main>
+
+</body>
+</html>

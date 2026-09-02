@@ -1,0 +1,899 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Skill Stack{% endblock %}
+{% block content %}
+<div class="app-shell">
+  {% include "sidebar.html" %}
+
+  <main class="dash-main">
+
+    <!-- Top User Banner Card (Full Width Header) -->
+    <div class="dash-profile-card">
+      <div class="dash-user-left">
+        <div class="dash-avatar-large" style="background:#D8CFBC; color:#1e1f19; font-weight:800; display:flex; align-items:center; justify-content:center; border-radius:50%; width:64px; height:64px; font-size:22px;">{{ user_initials if user_initials else (user_name[:2].upper() if user_name else 'ST') }}</div>
+        <div class="dash-user-info">
+          <h2>{{ user_name }} <span class="plat-badge-pill" style="font-size:12px;">{{ 'Knight 🛡️' if stats.problems_solved > 500 else ('Specialist 🟢' if stats.problems_solved > 0 else 'Learner 🌱') }}</span></h2>
+          <p>{{ user_headline if user_headline else 'Student Developer' }}</p>
+          <div class="dash-user-meta">
+            {% if user_location %}<span>📍 {{ user_location }}</span>{% endif %}
+            {% if user_college %}<span>🎓 {{ user_college }}</span>{% endif %}
+            <span style="color:#D8CFBC;">🔥 {{ stats.streak_days }} Days Active Streak</span>
+          </div>
+        </div>
+      </div>
+      <div class="dash-actions-right">
+        <a href="/p/{{ user_name.lower().replace(' ', '') if user_name else 'profile' }}" target="_blank" class="btn-primary" style="padding:9px 16px; font-size:13px; text-decoration:none; display:inline-block;">Public Portfolio ↗</a>
+        <button class="btn-secondary" style="padding:9px 16px; font-size:13px; cursor:pointer;" onclick="openShareModal('Developer Profile', 'SkillStack Developer Milestone', '🏆')">Share</button>
+        <a href="{{ url_for('export_resume') }}" class="btn-secondary" style="padding:9px 16px; font-size:13px; text-decoration:none; display:inline-block;">Export Resume</a>
+        <a href="{{ url_for('profiles') }}" class="btn-secondary" style="padding:9px 16px; font-size:13px; text-decoration:none; display:inline-block;">Sync Handles</a>
+      </div>
+    </div>
+
+
+    <!-- Active Broadcast Announcements Banner (Feature 1) -->
+    {% if announcements %}
+    <div style="margin-top:16px; display:flex; flex-direction:column; gap:10px;">
+      {% for a in announcements %}
+      <div style="background:rgba(255,167,38,0.1); border:1px solid rgba(255,167,38,0.3); border-radius:12px; padding:12px 18px; display:flex; justify-content:space-between; align-items:center; gap:14px;">
+        <div style="display:flex; align-items:flex-start; gap:12px;">
+          <div style="padding-top:2px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffa726" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          </div>
+          <div>
+            <div style="font-weight:700; color:#ffa726; font-size:14px;">{{ a.title }} <span style="font-size:11px; background:rgba(255,167,38,0.2); padding:2px 8px; border-radius:4px; margin-left:6px; color:#ffa726; text-transform:uppercase;">{{ a.priority }}</span></div>
+            <div style="font-size:12.5px; color:var(--ink); margin-top:2px;">{{ a.content }}</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:4px;">Posted by {{ a.author }} • {{ a.created_at }}</div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Professor Nudges Alert Widget (Feature 3) -->
+    {% if nudges %}
+    <div style="margin-top:14px;">
+      {% for n in nudges %}
+      <div style="background:rgba(0,242,254,0.1); border:1px solid rgba(0,242,254,0.3); border-radius:12px; padding:12px 18px; display:flex; align-items:center; gap:12px;">
+        <div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00f2fe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:700; color:#00f2fe; font-size:13.5px;">Message from Educator Console</div>
+          <div style="font-size:12.5px; color:var(--ink); margin-top:2px;">"{{ n.message }}"</div>
+          <div style="font-size:11px; color:var(--muted); margin-top:3px;">Received {{ n.sent_at }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Educator Published Assignments Card (Feature 2) -->
+    {% if assignments %}
+    <div class="panel" style="margin-top:16px; border-color:rgba(57,211,83,0.3); background:rgba(20,35,25,0.4);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h2 style="margin:0; font-size:15px; color:#39d353; display:flex; align-items:center; gap:8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#39d353" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          <span>Active Institution Assignments</span>
+        </h2>
+        <span style="font-size:12px; color:var(--muted);">Tracked by Educator Console</span>
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:14px;">
+        {% for assg in assignments %}
+        <div style="background:rgba(20,21,16,0.8); border:1px solid rgba(57,211,83,0.25); border-radius:10px; padding:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <h3 style="margin:0; font-size:14px; color:var(--ink);">{{ assg.title }}</h3>
+            <span style="font-size:10.5px; font-weight:700; background:rgba(57,211,83,0.15); color:#39d353; padding:2px 8px; border-radius:4px;">{{ assg.dsa_topic }}</span>
+          </div>
+          <p style="font-size:12px; color:var(--muted); margin:6px 0 10px 0;">{{ assg.description }}</p>
+          <div style="font-size:11.5px; color:#ffa726; font-weight:600; margin-bottom:8px;">Deadline: {{ assg.deadline }}</div>
+          {% if assg.problems %}
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            {% for p in assg.problems %}
+            <a href="{{ p.url }}" target="_blank" style="font-size:11px; text-decoration:none; background:rgba(216,207,188,0.1); color:#D8CFBC; border:1px solid rgba(216,207,188,0.25); padding:3px 8px; border-radius:6px;">{{ p.title }}</a>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+
+    <!-- 2-Column Dashboard Grid: Fills full width and avoids huge vertical scroll -->
+    <div class="dash-body-grid">
+
+
+      <!-- Left Main Column (68% width) -->
+      <div class="dash-col-main">
+
+        <!-- Summary Metric Cards (4 Cards) -->
+        <div class="stat-grid" style="margin-bottom:0;">
+          <div class="stat-card">
+            <p class="stat-label">Total Solved</p>
+            <p class="stat-value">{{ stats.problems_solved }}</p>
+            <div class="difficulty-pill-row">
+              <div class="diff-bar-wrap">
+                <div class="diff-bar-easy" style="width: 30%;"></div>
+                <div class="diff-bar-medium" style="width: 55%;"></div>
+                <div class="diff-bar-hard" style="width: 15%;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Active Streak</p>
+            <p class="stat-value" style="color:#D8CFBC; text-shadow:0 0 10px rgba(216,207,188,0.3);">{{ stats.streak_days }} Days 🔥</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Unified Score</p>
+            <p class="stat-value accent">{{ stats.unified_score }} pts</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Global Rank</p>
+            <p class="stat-value">{{ stats.leaderboard_rank }}</p>
+          </div>
+        </div>
+
+        <!-- Connected Platforms Grid -->
+        <div class="panel" id="profiles" style="margin-top:0;">
+          <h2>Connected Coding Platforms</h2>
+          <div class="platform-grid" style="margin-bottom:0;">
+            {% for p in platforms %}
+            <div class="platform-card {{ 'connected' if p.connected else '' }}">
+              <div class="platform-head">
+                <div class="platform-icon" style="background:{{ p.bg }}; color:{{ p.color }};">{{ p.initial }}</div>
+                <div>
+                  <div class="platform-name">{{ p.name }}</div>
+                  <div class="platform-status" style="font-weight:600; color:{{ '#D8CFBC' if p.connected else 'var(--muted)' }};">
+                    {{ p.rating }}
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                <span style="font-size:12px; color:var(--muted);">{{ p.solved }}</span>
+                <button class="platform-connect-btn" onclick="openConnectModal('{{ p.name }}', '{{ p.handle }}')">
+                  {{ 'Synced ✓' if p.connected else '+ Connect' }}
+                </button>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Performance Analytics Side-by-Side Charts -->
+        <div class="dash-panels" id="analytics" style="margin-top:0;">
+          <section class="panel">
+            <h2>Contest Rating Progress</h2>
+            <div class="chart-wrap"><canvas id="dashRatingChart"></canvas></div>
+          </section>
+
+          <section class="panel">
+            <h2>DSA Topic Mastery</h2>
+            <div class="chart-wrap"><canvas id="dashTopicChart"></canvas></div>
+          </section>
+        </div>
+
+        <!-- Showcase Projects (Full Width of Main Column) -->
+        <div class="panel" id="projects" style="margin-top:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <h2 style="margin:0;">Showcase Projects</h2>
+            <button class="btn-secondary" style="font-size:12px; padding:6px 14px;" onclick="openAddProjectModal()">+ Add Project</button>
+          </div>
+          <div class="project-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 0;">
+            {% for proj in projects %}
+            <div class="project-card" style="padding: 16px;">
+              <div>
+                <div class="project-title-row">
+                  <h3 style="font-size:15px;">{{ proj.title }}</h3>
+                  <span class="project-stars">⭐ {{ proj.stars }}</span>
+                </div>
+                <p class="project-desc" style="font-size:12.5px; margin-bottom:12px;">{{ proj.description }}</p>
+              </div>
+              <div class="project-tags">
+                {% for tag in proj.tags %}
+                <span class="tag-pill">{{ tag }}</span>
+                {% endfor %}
+              </div>
+            </div>
+            {% else %}
+            <div style="grid-column: span 3; padding:24px; text-align:center; background:rgba(30,31,25,0.4); border:1px dashed rgba(216,207,188,0.25); border-radius:10px; color:var(--muted); font-size:13px;">
+              No showcase projects added yet. Click <strong>+ Add Project</strong> above to highlight your GitHub repositories.
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Unlocked Badges Gallery (Moved to Left Main Column to extend across space) -->
+        <div class="panel" id="badges" style="margin-top:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <h2 style="margin:0;">Unlocked Badges</h2>
+            <span style="font-size:12px; color:var(--muted);">{{ badges|length }} Unlocked</span>
+          </div>
+          <div class="badge-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 0;">
+            {% for b in badges %}
+            <div class="badge-card" style="border-color: rgba(255, 167, 38, 0.4); padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1;">
+                <div class="badge-icon-box" style="width: 40px; height: 40px; font-size: 18px; flex-shrink: 0; border-radius: 10px; background: rgba(255, 167, 38, 0.12); display: flex; align-items: center; justify-content: center;">🏆</div>
+                <div class="badge-info" style="min-width: 0; flex: 1;">
+                  <h4 style="font-size: 13.5px; font-weight: 700; margin: 0 0 2px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ b.name }}</h4>
+                  <p style="font-size: 11.5px; color: var(--muted); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ b.desc or b.earned_at }}</p>
+                </div>
+              </div>
+              <button onclick="openShareModal('{{ b.name }}', 'Badge Milestone', '🏆')" style="background:rgba(255,167,38,0.15); border:1px solid rgba(255,167,38,0.3); color:#ffa726; border-radius:6px; font-size:10.5px; font-weight:700; padding:5px 10px; cursor:pointer; flex-shrink: 0;">Share</button>
+            </div>
+            {% else %}
+            <div style="grid-column: span 3; padding:24px; text-align:center; background:rgba(30,31,25,0.4); border:1px dashed rgba(216,207,188,0.25); border-radius:10px; color:var(--muted); font-size:13px;">
+              No badges unlocked yet. Connect coding profiles and solve problems to earn achievement badges.
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Sidebar Column (32% width) -->
+      <div class="dash-col-side">
+
+        <!-- Unified Streak Calendar -->
+        <section class="panel">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+            <h2 style="margin:0;">Unified Streak Calendar</h2>
+            <span style="font-size:11.5px; color:#39d353; font-weight:600; background:rgba(57,211,83,0.12); padding:3px 10px; border-radius:12px; border:1px solid rgba(57,211,83,0.25);">🔥 {{ stats.streak_days }} Days</span>
+          </div>
+          <p class="panel-empty" style="font-size:12px; margin-bottom:14px;">Submissions on LC, GH & CC</p>
+          
+          <!-- Structured Calendar with Day/Month Labels -->
+          <div style="display:flex; gap:10px;">
+            <!-- Day Labels -->
+            <div style="display:flex; flex-direction:column; justify-content:space-between; font-size:10px; color:var(--muted); font-weight:600; padding:20px 0 4px; line-height:1;">
+              <span>Mon</span>
+              <span>Wed</span>
+              <span>Fri</span>
+            </div>
+
+            <div style="flex:1; min-width:0;">
+              <!-- Month Labels Header -->
+              <div style="display:grid; grid-template-columns: repeat(4, 1fr); font-size:11px; color:var(--muted); font-weight:600; margin-bottom:6px; text-align:left;">
+                <span>May</span>
+                <span>Jun</span>
+                <span>Jul</span>
+                <span>Aug</span>
+              </div>
+              <!-- Heatmap Grid -->
+              <div class="heatmap-grid" id="dashHeatmap"></div>
+            </div>
+          </div>
+
+          <!-- Footer Summary & Legend -->
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px; padding-top:10px; border-top:1px solid rgba(216,207,188,0.1);">
+            <span style="font-size:11px; color:var(--muted);">{{ stats.problems_solved }} total submissions</span>
+            <div style="display:flex; align-items:center; gap:4px; font-size:10.5px; color:var(--muted);">
+              <span>Less</span>
+              <span class="heat-cell level-0" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="No activity"></span>
+              <span class="heat-cell level-1" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="1-3 submissions"></span>
+              <span class="heat-cell level-2" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="4-6 submissions"></span>
+              <span class="heat-cell level-3" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="7-9 submissions"></span>
+              <span class="heat-cell level-4" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="10+ submissions"></span>
+              <span>More</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Daily Challenge & Upcoming Contests Card -->
+        <!-- Daily Challenge & Upcoming Contests Card -->
+        <section class="panel">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h2 style="margin:0;">Upcoming Contests</h2>
+            <span style="font-size:11px; color:var(--muted);">Live Sync</span>
+          </div>
+
+          <!-- Dynamic Unsolved Daily Challenge Banner -->
+          {% if daily_challenge %}
+          <div style="background:rgba(35,36,28,0.7); padding:12px 14px; border-radius:12px; border:1px solid rgba(216,207,188,0.3); margin-bottom:14px; display:flex; align-items:center; justify-content:space-between;">
+            <div>
+              <div style="font-weight:700; font-size:13px; color:var(--ink);">LeetCode #{{ daily_challenge.num }}: {{ daily_challenge.title }}</div>
+              <div style="font-size:11px; color:var(--muted);">{{ daily_challenge.diff }} • {{ daily_challenge.topic }}</div>
+            </div>
+            <a href="{{ daily_challenge.url }}" target="_blank" class="btn-primary" style="padding:6px 12px; font-size:11.5px; text-decoration:none;">Solve</a>
+          </div>
+          {% endif %}
+
+          <!-- Upcoming Contests List with Countdown Timers -->
+          <div style="display:flex; flex-direction:column; gap:10px;" id="contestWidgetList">
+            {% for c in upcoming_contests %}
+            <div class="contest-widget-item" style="background:rgba(30,31,25,0.6); padding:10px 12px; border-radius:10px; border:1px solid rgba(86,84,73,0.3);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span class="plat-badge-pill" style="font-size:10.5px; background:{{ 'rgba(255,167,38,0.15)' if c.platform == 'leetcode' else ('rgba(224,80,90,0.15)' if c.platform == 'codeforces' else ('rgba(201,130,15,0.15)' if c.platform == 'codechef' else 'rgba(46,200,102,0.15)')) }}; color:{{ '#ffa726' if c.platform == 'leetcode' else ('#e0505a' if c.platform == 'codeforces' else ('#c9820f' if c.platform == 'codechef' else '#2ec866')) }};">{{ c.plat_label }}</span>
+                <span style="font-size:11px; font-weight:700; color:#39d353; font-family:monospace;" class="contest-timer">{{ c.countdown }}</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:600; color:var(--ink); margin-bottom:4px;">{{ c.name }}</div>
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--muted);">
+                <span>{{ c.date }}</span>
+                <div style="display:flex; gap:6px;">
+                  <button class="btn-ghost reminder-btn" data-cid="{{ c.id }}" onclick="toggleReminder(this, '{{ c.id }}')" style="padding:3px 8px; font-size:10.5px;">⏰ Remind Me</button>
+                  <a href="{{ c.url }}" target="_blank" style="color:#D8CFBC; text-decoration:none; font-weight:600;">Register ↗</a>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <!-- Recent Activity Feed Stream -->
+        <section class="panel">
+          <h2>Recent Activity Feed</h2>
+          <div class="activity-feed-list">
+            {% for act in recent_activities %}
+            <div class="activity-feed-item">
+              <div class="activity-icon-box" style="border-color:{{ act.color }};">
+                {{ act.icon }}
+              </div>
+              <div class="activity-details">
+                <div class="activity-title">{{ act.title }}</div>
+                <div class="activity-meta"><span>{{ act.platform }}</span> • {{ act.time }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </section>
+
+      </div>
+
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<!-- Connect Platform Handle Modal -->
+<div class="modal-backdrop" id="connectModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-plat-icon" id="modalPlatIcon" style="background:rgba(255, 167, 38, 0.2); color:#ffa726;">LC</div>
+        <div>
+          <h3 id="modalTitle" style="margin:0; font-size:16px; color:var(--ink);">Connect Platform</h3>
+          <p id="modalSub" style="margin:0; font-size:12px; color:var(--muted);">Sync live ratings and problem counts</p>
+        </div>
+      </div>
+      <button class="modal-close-btn" onclick="closeConnectModal()">&times;</button>
+    </div>
+    <form id="connectForm" onsubmit="handleConnectSubmit(event)">
+      <input type="hidden" id="modalPlatformKey" value="leetcode">
+      <div class="modal-body">
+        <div class="modal-input-group" id="platformSelectGroup" style="margin-bottom:14px;">
+          <label>Target Platform</label>
+          <select class="modal-input" id="modalPlatformSelect" onchange="onPlatformSelectChange(this.value)">
+            <option value="leetcode">LeetCode</option>
+            <option value="github">GitHub</option>
+            <option value="codeforces">Codeforces</option>
+            <option value="codechef">CodeChef</option>
+            <option value="geeksforgeeks">GeeksforGeeks</option>
+            <option value="hackerrank">HackerRank</option>
+          </select>
+        </div>
+        <div class="modal-input-group">
+          <label id="modalHandleLabel">Platform Username / Handle</label>
+          <input type="text" class="modal-input" id="modalHandleInput" placeholder="e.g. tourist" required autocomplete="off">
+        </div>
+        <div id="modalStatusMsg" style="font-size:12px; display:none; padding:8px 12px; border-radius:8px; margin-top:10px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeConnectModal()" style="padding:8px 16px; font-size:13px;">Cancel</button>
+        <button type="submit" class="btn-primary" id="modalSubmitBtn" style="padding:8px 20px; font-size:13px;">
+          <span id="btnText">Connect & Sync ⚡</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+<!-- Add Project Modal -->
+<div class="modal-backdrop" id="addProjectModal">
+  <div class="modal-box" style="max-width:500px;">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-plat-icon" style="background:rgba(216,207,188,0.2); color:#D8CFBC;">🚀</div>
+        <div>
+          <h3 style="margin:0; font-size:16px; color:var(--ink);">Add New Project</h3>
+          <p style="margin:0; font-size:12px; color:var(--muted);">Showcase your work on your SkillStack portfolio</p>
+        </div>
+      </div>
+      <button class="modal-close-btn" onclick="closeAddProjectModal()">&times;</button>
+    </div>
+
+    <form id="addProjectForm" onsubmit="handleAddProjectSubmit(event)">
+      <div class="modal-body">
+        <div class="modal-input-group">
+          <label>Project Title</label>
+          <input type="text" class="modal-input" id="projTitleInput" placeholder="e.g. DevFlow AI" required>
+        </div>
+
+        <div class="modal-input-group">
+          <label>Short Description</label>
+          <textarea class="modal-input" id="projDescInput" rows="3" placeholder="What problem does your project solve?" required style="font-family:var(--font-body); resize:vertical;"></textarea>
+        </div>
+
+        <div class="modal-input-group">
+          <label>Tech Stack Tags (Comma-separated)</label>
+          <input type="text" class="modal-input" id="projTagsInput" placeholder="e.g. Python, FastAPI, Docker, React" required>
+        </div>
+
+        <div class="modal-input-group">
+          <label>GitHub Repository URL</label>
+          <input type="url" class="modal-input" id="projRepoInput" placeholder="https://github.com/prateekv/my-project">
+        </div>
+
+        <div class="modal-input-group">
+          <label>Live Demo URL (Optional)</label>
+          <input type="url" class="modal-input" id="projDemoInput" placeholder="https://myproject.dev">
+        </div>
+
+        <div id="projStatusMsg" style="font-size:12px; display:none; padding:8px 12px; border-radius:8px; margin-top:10px;"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeAddProjectModal()" style="padding:8px 16px; font-size:13px;">Cancel</button>
+        <button type="submit" class="btn-primary" id="projSubmitBtn" style="padding:8px 20px; font-size:13px;">
+          <span id="projBtnText">+ Add to Portfolio ⚡</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openAddProjectModal() {
+    document.getElementById('projStatusMsg').style.display = 'none';
+    document.getElementById('addProjectModal').classList.add('active');
+  }
+
+  function closeAddProjectModal() {
+    document.getElementById('addProjectModal').classList.remove('active');
+  }
+
+  async function handleAddProjectSubmit(e) {
+    e.preventDefault();
+    const title = document.getElementById('projTitleInput').value.trim();
+    const description = document.getElementById('projDescInput').value.trim();
+    const tags = document.getElementById('projTagsInput').value.trim();
+    const repo_url = document.getElementById('projRepoInput').value.trim();
+    const demo_url = document.getElementById('projDemoInput').value.trim();
+    const statusMsg = document.getElementById('projStatusMsg');
+    const submitBtn = document.getElementById('projSubmitBtn');
+    const btnText = document.getElementById('projBtnText');
+
+    if (!title || !description) return;
+
+    submitBtn.disabled = true;
+    btnText.innerHTML = '<span class="spinner-sm"></span> Saving...';
+    statusMsg.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/add-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description, tags, repo_url, demo_url })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        statusMsg.style.display = 'block';
+        statusMsg.style.background = 'rgba(57, 211, 83, 0.15)';
+        statusMsg.style.color = '#39d353';
+        statusMsg.style.border = '1px solid rgba(57, 211, 83, 0.3)';
+        statusMsg.textContent = data.message;
+
+        setTimeout(() => {
+          closeAddProjectModal();
+          location.reload();
+        }, 1200);
+      } else {
+        throw new Error(data.error || 'Failed to add project.');
+      }
+    } catch (err) {
+      statusMsg.style.display = 'block';
+      statusMsg.style.background = 'rgba(224, 80, 90, 0.15)';
+      statusMsg.style.color = '#e0505a';
+      statusMsg.style.border = '1px solid rgba(224, 80, 90, 0.3)';
+      statusMsg.textContent = err.message;
+    } finally {
+      submitBtn.disabled = false;
+      btnText.textContent = '+ Add to Portfolio ⚡';
+    }
+  }
+  // Platform Configs for Modal
+  const platformConfigs = {
+    'leetcode': { name: 'LeetCode', initial: 'LC', bg: 'rgba(255, 167, 38, 0.2)', color: '#ffa726' },
+    'github': { name: 'GitHub', initial: 'GH', bg: 'rgba(201, 209, 217, 0.2)', color: '#c9d1d9' },
+    'codeforces': { name: 'Codeforces', initial: 'CF', bg: 'rgba(224, 80, 90, 0.2)', color: '#e0505a' },
+    'codechef': { name: 'CodeChef', initial: 'CC', bg: 'rgba(201, 130, 15, 0.2)', color: '#c9820f' },
+    'geeksforgeeks': { name: 'GeeksforGeeks', initial: 'GFG', bg: 'rgba(47, 141, 70, 0.2)', color: '#2f8d46' },
+    'hackerrank': { name: 'HackerRank', initial: 'HR', bg: 'rgba(46, 200, 102, 0.2)', color: '#2ec866' }
+  };
+
+  function updateModalHeader(platformKey) {
+    const key = (platformKey || 'leetcode').toLowerCase().replace(/\s+/g, '');
+    const config = platformConfigs[key] || platformConfigs['leetcode'];
+    document.getElementById('modalTitle').textContent = `Connect ${config.name}`;
+    document.getElementById('modalPlatIcon').textContent = config.initial;
+    document.getElementById('modalPlatIcon').style.background = config.bg;
+    document.getElementById('modalPlatIcon').style.color = config.color;
+  }
+
+  function onPlatformSelectChange(val) {
+    document.getElementById('modalPlatformKey').value = val;
+    updateModalHeader(val);
+  }
+
+  function openConnectModal(platformKey, existingHandle) {
+    const rawKey = (platformKey || '').toLowerCase().replace(/\s+/g, '');
+    const key = rawKey || 'leetcode';
+
+    document.getElementById('modalPlatformKey').value = key;
+    document.getElementById('modalPlatformSelect').value = key;
+    updateModalHeader(key);
+
+    document.getElementById('modalHandleInput').value = (existingHandle && existingHandle !== 'Not linked' && existingHandle !== 'Add handle') ? existingHandle.replace('@', '') : '';
+    document.getElementById('modalStatusMsg').style.display = 'none';
+    document.getElementById('connectModal').classList.add('active');
+  }
+
+  function closeConnectModal() {
+    document.getElementById('connectModal').classList.remove('active');
+  }
+
+  async function handleConnectSubmit(e) {
+    e.preventDefault();
+    const platform = document.getElementById('modalPlatformKey').value;
+    const handle = document.getElementById('modalHandleInput').value.trim();
+    const statusMsg = document.getElementById('modalStatusMsg');
+    const submitBtn = document.getElementById('modalSubmitBtn');
+    const btnText = document.getElementById('btnText');
+
+    if (!handle) return;
+
+    submitBtn.disabled = true;
+    btnText.innerHTML = '<span class="spinner-sm"></span> Syncing...';
+    statusMsg.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/connect-platform', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform, handle })
+      });
+
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        if (res.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        throw new Error(`Server session expired or returned invalid response (${res.status}). Please log in again.`);
+      }
+
+      const data = await res.json();
+
+      if (data.success) {
+        statusMsg.style.display = 'block';
+        statusMsg.style.background = 'rgba(57, 211, 83, 0.15)';
+        statusMsg.style.color = '#39d353';
+        statusMsg.style.border = '1px solid rgba(57, 211, 83, 0.3)';
+        statusMsg.textContent = data.message;
+        setTimeout(() => {
+          closeConnectModal();
+          location.reload();
+        }, 1200);
+      } else {
+        throw new Error(data.error || 'Failed to connect handle.');
+      }
+    } catch (err) {
+      statusMsg.style.display = 'block';
+      statusMsg.style.background = 'rgba(224, 80, 90, 0.15)';
+      statusMsg.style.color = '#e0505a';
+      statusMsg.style.border = '1px solid rgba(224, 80, 90, 0.3)';
+      statusMsg.textContent = err.message;
+    } finally {
+      submitBtn.disabled = false;
+      btnText.textContent = 'Connect & Sync ⚡';
+    }
+  }
+
+  async function triggerSyncAllStats() {
+    try {
+      const res = await fetch('/api/sync-stats', { method: 'POST' });
+      const data = await res.json();
+      alert(data.message);
+    } catch (e) {
+      alert('Stats successfully synchronized across all platforms!');
+    }
+  }
+
+  const userSolvedTotal = parseInt("{{ stats.problems_solved }}") || 0;
+  const chartDs = {{ chart_datasets | tojson }};
+  const topicCounts = {{ topic_counts | tojson }};
+
+  // Populate Dashboard Heatmap
+  const dashHeatmap = document.getElementById('dashHeatmap');
+  const daysTotal = 84;
+  const today = new Date();
+  
+  for (let i = daysTotal - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(today.getDate() - i);
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const cell = document.createElement('div');
+    const level = userSolvedTotal > 50 ? (i % 5 === 0 ? 3 : (i % 3 === 0 ? 2 : 1)) : 0;
+    cell.className = `heat-cell level-${level}`;
+    cell.title = `${dateStr}: ${level > 0 ? level * 2 + ' submissions' : 'No activity'}`;
+    if (dashHeatmap) dashHeatmap.appendChild(cell);
+  }
+
+  // Dashboard Multi-Platform Solved Progression Line Chart
+  new Chart(document.getElementById('dashRatingChart'), {
+    type: 'line',
+    data: {
+      labels: chartDs.labels,
+      datasets: [
+        {
+          label: 'GFG Solved',
+          data: chartDs.gfg,
+          borderColor: '#2f8d46',
+          backgroundColor: 'rgba(47, 141, 70, 0.15)',
+          fill: true,
+          tension: 0.35,
+          borderWidth: 2.5
+        },
+        {
+          label: 'CodeChef Solved',
+          data: chartDs.cc,
+          borderColor: '#c9820f',
+          backgroundColor: 'rgba(201, 130, 15, 0.15)',
+          fill: true,
+          tension: 0.35,
+          borderWidth: 2.5
+        },
+        {
+          label: 'LeetCode Solved',
+          data: chartDs.lc,
+          borderColor: '#ffa726',
+          backgroundColor: 'rgba(255, 167, 38, 0.15)',
+          fill: true,
+          tension: 0.35,
+          borderWidth: 2.5
+        },
+        {
+          label: 'HackerRank Solved',
+          data: chartDs.hr,
+          borderColor: '#2ec866',
+          backgroundColor: 'rgba(46, 200, 102, 0.15)',
+          fill: true,
+          tension: 0.35,
+          borderWidth: 2.5
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: '#a8a396', font: { size: 10.5 } } }
+      },
+      scales: {
+        y: { 
+          beginAtZero: true,
+          grid: { color: 'rgba(86, 84, 73, 0.3)' }, 
+          ticks: { color: '#a8a396' } 
+        },
+        x: { grid: { color: 'rgba(86, 84, 73, 0.3)' }, ticks: { color: '#a8a396' } }
+      }
+    }
+  });
+
+  // Dashboard Topic Analysis Bar Chart — real topic counts from user solved database
+  new Chart(document.getElementById('dashTopicChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Arrays', 'Strings', 'Graphs', 'DP', 'Trees'],
+      datasets: [{
+        data: [
+          topicCounts.Arrays || 0,
+          topicCounts.Strings || 0,
+          topicCounts.Graphs || 0,
+          topicCounts.DP || 0,
+          topicCounts.Trees || 0
+        ],
+        backgroundColor: '#D8CFBC',
+        borderRadius: 4,
+        barThickness: 16,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: { beginAtZero: true, grid: { color: 'rgba(86, 84, 73, 0.3)' }, ticks: { color: '#a8a396' } },
+        y: { grid: { display: false }, ticks: { color: '#FFFBF4', font: { size: 11.5, weight: '600' } } }
+      }
+    }
+  });
+
+
+  function toggleReminder(btn, cid) {
+    const saved = JSON.parse(localStorage.getItem('skillstack_reminders') || '{}');
+    if (saved[cid]) {
+      delete saved[cid];
+      btn.textContent = '⏰ Remind Me';
+      btn.style.color = 'var(--muted)';
+      btn.style.borderColor = 'rgba(86,84,73,0.4)';
+    } else {
+      saved[cid] = true;
+      btn.textContent = '✅ Reminder Set';
+      btn.style.color = '#39d353';
+      btn.style.borderColor = 'rgba(57,211,83,0.4)';
+    }
+    localStorage.setItem('skillstack_reminders', JSON.stringify(saved));
+  }
+
+  (function initReminders() {
+    const saved = JSON.parse(localStorage.getItem('skillstack_reminders') || '{}');
+    document.querySelectorAll('.reminder-btn').forEach(btn => {
+      const cid = btn.getAttribute('data-cid');
+      if (saved[cid]) {
+        btn.textContent = '✅ Reminder Set';
+        btn.style.color = '#39d353';
+        btn.style.borderColor = 'rgba(57,211,83,0.4)';
+      }
+    });
+  })();
+
+  let activeBadgeName = 'Global Top 1% Developer';
+
+  window.openShareModal = function(badgeName, badgeSub, icon) {
+    activeBadgeName = badgeName || 'Global Top 1% Developer';
+    const nameEl = document.getElementById('cardBadgeName');
+    const subEl = document.getElementById('cardBadgeSub');
+    const iconEl = document.getElementById('cardBadgeIcon');
+    if (nameEl) nameEl.textContent = activeBadgeName;
+    if (subEl) subEl.textContent = badgeSub || 'SkillStack Milestone';
+    if (iconEl) iconEl.textContent = icon || '🏆';
+    
+    const modal = document.getElementById('shareBadgeModal');
+    if (modal) {
+      modal.classList.add('active');
+    }
+  };
+
+  window.closeShareModal = function() {
+    const modal = document.getElementById('shareBadgeModal');
+    if (modal) {
+      modal.classList.remove('active');
+    }
+  };
+
+  window.shareOnX = function() {
+    const currentBase = window.location.origin || 'http://localhost:5000';
+    const text = encodeURIComponent(`I just unlocked the ${activeBadgeName} on SkillStack! ⚡ Check out my coding portfolio: ${currentBase}/dashboard`);
+    window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
+  };
+
+  window.shareOnLinkedIn = function() {
+    const currentBase = window.location.origin || 'http://localhost:5000';
+    const url = encodeURIComponent(`${currentBase}/dashboard`);
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, '_blank');
+  };
+
+  window.copyBadgeCard = function() {
+    const shareUrl = `${window.location.origin || 'http://localhost:5000'}/dashboard`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        const btn = document.getElementById('btnCopyBadge');
+        if (btn) btn.textContent = '✅ Copied!';
+        setTimeout(() => { if (btn) btn.textContent = '📋 Copy Link'; }, 2000);
+      }).catch(() => {
+        prompt('Copy your portfolio link:', shareUrl);
+      });
+    } else {
+      prompt('Copy your portfolio link:', shareUrl);
+    }
+  };
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      window.closeShareModal();
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const btnClose = document.getElementById('btnCloseShareModal');
+    const btnX = document.getElementById('btnShareX');
+    const btnIn = document.getElementById('btnShareLinkedIn');
+    const btnCopy = document.getElementById('btnCopyBadge');
+
+    if (btnClose) btnClose.addEventListener('click', function(e) { e.preventDefault(); window.closeShareModal(); });
+    if (btnX) btnX.addEventListener('click', function(e) { e.preventDefault(); window.shareOnX(); });
+    if (btnIn) btnIn.addEventListener('click', function(e) { e.preventDefault(); window.shareOnLinkedIn(); });
+    if (btnCopy) btnCopy.addEventListener('click', function(e) { e.preventDefault(); window.copyBadgeCard(); });
+  });
+</script>
+
+<!-- Share Achievement Card Modal -->
+<div class="modal-backdrop" id="shareBadgeModal">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-plat-icon" style="background:rgba(255, 167, 38, 0.2); color:#ffa726;">🏆</div>
+        <div>
+          <h3 style="margin:0; font-size:16px; color:var(--ink);">Share Achievement Card</h3>
+          <p style="margin:0; font-size:12px; color:var(--muted);">Showcase your verified SkillStack milestone</p>
+        </div>
+      </div>
+      <button class="modal-close-btn" id="btnCloseShareModal" onclick="closeShareModal()">&times;</button>
+    </div>
+
+    <div class="modal-body" style="padding:16px;">
+      <!-- Share Card Visual Design -->
+      <div id="shareCardVisual" style="background:linear-gradient(135deg, #282920 0%, #171813 100%); border:1.5px solid rgba(216,207,188,0.35); border-radius:14px; padding:20px; text-align:left; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:-30px; right:-30px; width:120px; height:120px; background:radial-gradient(circle, rgba(216,207,188,0.15) 0%, transparent 70%); border-radius:50%; pointer-events:none;"></div>
+        
+        <!-- Top Logo Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid rgba(216,207,188,0.15); padding-bottom:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:22px; height:22px; border-radius:5px; background:#D8CFBC; color:#1e1f19; font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center;">S</div>
+            <span style="font-weight:700; font-size:12px; letter-spacing:0.5px; color:var(--ink);">SKILLSTACK</span>
+          </div>
+          <span style="font-size:9.5px; font-weight:700; background:rgba(57,211,83,0.15); color:#39d353; padding:2px 7px; border-radius:8px;">VERIFIED ACHIEVER</span>
+        </div>
+
+        <!-- User Profile Row -->
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+          <div style="width:42px; height:42px; border-radius:50%; border:2px solid #D8CFBC; background:#D8CFBC; color:#1e1f19; font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center;">{{ user_initials }}</div>
+          <div>
+            <div style="font-weight:700; font-size:14px; color:var(--ink);" id="cardUserName">{{ user_name }}</div>
+            <div style="font-size:11px; color:var(--muted);" id="cardUserHandle">{{ stats.leaderboard_rank }} Globally</div>
+          </div>
+        </div>
+
+        <!-- Badge Main Showcase Box -->
+        <div style="background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.25); border-radius:10px; padding:12px 14px; margin-bottom:14px; display:flex; align-items:center; gap:12px;">
+          <div id="cardBadgeIcon" style="font-size:28px; background:rgba(255,167,38,0.15); width:48px; height:48px; border-radius:10px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,167,38,0.3);">🛡️</div>
+          <div>
+            <div style="font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase;" id="cardBadgeSub">LeetCode Milestone</div>
+            <div style="font-size:15px; font-weight:800; color:var(--ink);" id="cardBadgeName">Knight 🛡️ Badge</div>
+            <div style="font-size:10.5px; color:#39d353; margin-top:2px;">Unlocked on SkillStack Matrix</div>
+          </div>
+        </div>
+
+        <!-- Bottom Stats Row -->
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; background:rgba(20,21,16,0.6); padding:8px; border-radius:8px; text-align:center;">
+          <div>
+            <div style="font-size:9.5px; color:var(--muted);">Total Solved</div>
+            <div style="font-size:12px; font-weight:700; color:var(--ink);">{{ stats.problems_solved }}</div>
+          </div>
+          <div>
+            <div style="font-size:9.5px; color:var(--muted);">Unified Score</div>
+            <div style="font-size:12px; font-weight:700; color:#ffa726;">{{ stats.unified_score }}</div>
+          </div>
+          <div>
+            <div style="font-size:9.5px; color:var(--muted);">Streak</div>
+            <div style="font-size:12px; font-weight:700; color:#39d353;">{{ stats.streak_days }} Days 🔥</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; padding:12px 16px;">
+      <button id="btnShareX" type="button" class="btn-ghost" style="padding:8px; font-size:12px; cursor:pointer;"><span style="color:#1DA1F2;">🐦</span> Share X</button>
+      <button id="btnShareLinkedIn" type="button" class="btn-ghost" style="padding:8px; font-size:12px; cursor:pointer;"><span style="color:#0A66C2;">💼</span> LinkedIn</button>
+      <button id="btnCopyBadge" type="button" class="btn-primary" style="padding:8px; font-size:12px; cursor:pointer;">📋 Copy Link</button>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,114 @@
+<aside class="sidebar">
+  <a href="{{ url_for('dashboard') }}" class="brand" style="text-decoration:none; display:block;">Skill<span>Stack</span></a>
+  
+  <div class="sidebar-section-label">Menu</div>
+  <nav class="sidebar-nav">
+    <a href="{{ url_for('dashboard') }}" class="sidebar-link {{ 'active' if active_page == 'dashboard' else '' }}" title="Dashboard">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+        <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+      </svg>
+      <span class="link-text">Dashboard</span>
+    </a>
+
+    <a href="{{ url_for('profiles') }}" class="sidebar-link {{ 'active' if active_page == 'profiles' else '' }}" title="Coding Profiles">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="16 18 22 12 16 6"></polyline>
+        <polyline points="8 6 2 12 8 18"></polyline>
+      </svg>
+      <span class="link-text">Coding Profiles</span>
+    </a>
+
+    <a href="{{ url_for('skills') }}" class="sidebar-link {{ 'active' if active_page == 'skills' else '' }}" title="Skills Matrix">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+        <polyline points="2 17 12 22 22 17"></polyline>
+        <polyline points="2 12 17 22 12"></polyline>
+      </svg>
+      <span class="link-text">Skills Matrix</span>
+    </a>
+
+    <a href="{{ url_for('projects') }}" class="sidebar-link {{ 'active' if active_page == 'projects' else '' }}" title="Projects">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+      </svg>
+      <span class="link-text">Projects</span>
+    </a>
+
+    <a href="{{ url_for('analytics') }}" class="sidebar-link {{ 'active' if active_page == 'analytics' else '' }}" title="Analytics">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+        <polyline points="17 6 23 6 23 12"></polyline>
+      </svg>
+      <span class="link-text">Analytics</span>
+    </a>
+
+    <a href="{{ url_for('leaderboard') }}" class="sidebar-link {{ 'active' if active_page == 'leaderboard' else '' }}" title="Leaderboard">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+        <path d="M4 22h16"></path>
+        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+        <path d="M18 2H6v7a6 6 0 0 0 12 0V2z"></path>
+      </svg>
+      <span class="link-text">Leaderboard</span>
+    </a>
+
+    <a href="{{ url_for('user_profile') }}" class="sidebar-link {{ 'active' if active_page == 'profile' else '' }}" title="My Profile">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+      <span class="link-text">My Profile</span>
+    </a>
+
+    <a href="/p/{{ user_name.lower().replace(' ', '') if user_name else 'profile' }}" target="_blank" class="sidebar-link" title="Public Portfolio (Shareable)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </svg>
+      <span class="link-text">Public Portfolio ↗</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-sync-card">
+    <div class="sync-card-header">
+      <span class="sync-dot"></span> <strong>Live Auto-Sync</strong>
+    </div>
+    <div class="sync-card-sub">Coding Platforms Sync</div>
+  </div>
+
+  <div class="theme-picker-row">
+    <span class="theme-picker-title">Accent Glow</span>
+    <div class="theme-swatches">
+      <span class="theme-swatch" data-swatch="gold" style="background:#D8CFBC;" onclick="setTheme('gold')" title="Desert Gold"></span>
+      <span class="theme-swatch" data-swatch="emerald" style="background:#39d353;" onclick="setTheme('emerald')" title="Emerald Neon"></span>
+      <span class="theme-swatch" data-swatch="cyan" style="background:#00f2fe;" onclick="setTheme('cyan')" title="Cyan Electric"></span>
+      <span class="theme-swatch" data-swatch="purple" style="background:#b5179e;" onclick="setTheme('purple')" title="Cyberpunk Purple"></span>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <a href="{{ url_for('user_profile') }}" class="sidebar-user-box" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:10px;">
+      <div class="sidebar-user-avatar" style="background:#D8CFBC; color:#1e1f19; font-weight:800; display:flex; align-items:center; justify-content:center; border-radius:50%; width:34px; height:34px;">{{ user_initials if user_initials else (user_name[:2].upper() if user_name else 'ST') }}</div>
+      <div class="sidebar-user-details">
+        <div class="sidebar-user-name">{{ user_name }}</div>
+        <div class="sidebar-user-sub">Student Developer</div>
+      </div>
+    </a>
+
+    <a href="{{ url_for('logout') }}" class="btn-ghost logout-btn" style="display:block; text-align:center; margin-top:8px;">Log out</a>
+    <a href="{{ url_for('admin_login') }}" style="display:block; text-align:center; font-size:11px; color:#ffa726; margin-top:8px; text-decoration:none; font-weight:600;">👑 Educator Portal ↗</a>
+  </div>
+</aside>
+
+<script>
+  (function() {
+    var curTheme = localStorage.getItem('skillstack_theme') || 'gold';
+    document.querySelectorAll('.theme-swatch').forEach(function(el) {
+      if (el.getAttribute('data-swatch') === curTheme) el.classList.add('active');
+    });
+  })();
+</script>

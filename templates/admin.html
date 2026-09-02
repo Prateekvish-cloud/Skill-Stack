@@ -1,0 +1,972 @@
+{% extends "base.html" %}
+{% block title %}Admin Console — Educator Student Monitoring | Skill Stack{% endblock %}
+{% block content %}
+<style>
+  .floating-stack {
+    display: none !important;
+  }
+</style>
+
+<div class="app-shell">
+
+  <!-- Dedicated Admin Sidebar Navigation Card (Identical Structure & Theme to Student Sidebar) -->
+  <aside class="sidebar">
+    <a href="{{ url_for('admin_dashboard') }}" class="brand"
+      style="text-decoration:none; display:block;">Skill<span>Stack</span> <span
+        style="font-size:10px; color:var(--primary); display:block; font-family:var(--font-body); font-weight:700; margin-top:2px;">👑
+        EDUCATOR CONSOLE</span></a>
+
+    <div class="sidebar-section-label" style="margin-top:16px;">Admin Navigation</div>
+    <nav class="sidebar-nav">
+      <a href="javascript:void(0)" onclick="switchAdminTab('roster', this)" class="sidebar-link active"
+        id="navRosterLink" title="Student Roster">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <span class="link-text">Student Roster</span>
+      </a>
+
+      <a href="javascript:void(0)" onclick="switchAdminTab('analytics', this)" class="sidebar-link"
+        id="navAnalyticsLink" title="Class Analytics">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+          <polyline points="17 6 23 6 23 12"></polyline>
+        </svg>
+        <span class="link-text">Class Analytics</span>
+      </a>
+
+      <a href="javascript:void(0)" onclick="switchAdminTab('announcements', this)" class="sidebar-link" id="navAnnouncementsLink" title="Broadcast Announcements">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+        <span class="link-text">Broadcast Center</span>
+      </a>
+
+      <a href="javascript:void(0)" onclick="switchAdminTab('assignments', this)" class="sidebar-link" id="navAssignmentsLink" title="Assignment Manager">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 11 12 14 22 4"></polyline>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+        </svg>
+        <span class="link-text">Assignments</span>
+      </a>
+
+      <a href="javascript:void(0)" onclick="switchAdminTab('risk', this)" class="sidebar-link" id="navRiskLink" title="Risk Radar">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <span class="link-text">Risk Radar</span>
+      </a>
+
+      <a href="javascript:void(0)" onclick="switchAdminTab('placement', this)" class="sidebar-link" id="navPlacementLink" title="Placement Candidate Filter">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+        </svg>
+        <span class="link-text">Placement Filter</span>
+      </a>
+
+      <a href="javascript:void(0)" onclick="switchAdminTab('badges', this)" class="sidebar-link" id="navBadgesLink" title="Custom Badges">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="7"></circle>
+          <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+        </svg>
+        <span class="link-text">Custom Badges</span>
+      </a>
+
+
+      <a href="javascript:void(0)" onclick="exportClassReport()" class="sidebar-link" title="CSV Reports">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+        </svg>
+        <span class="link-text">Export CSV Report</span>
+      </a>
+    </nav>
+
+
+    <!-- Theme Swatch Accent Glow Picker -->
+    <div class="theme-picker-row" style="margin-top:20px;">
+      <span class="theme-picker-title">Accent Glow</span>
+      <div class="theme-swatches">
+        <span class="theme-swatch" data-swatch="gold" style="background:#D8CFBC;" onclick="setTheme('gold')"
+          title="Desert Gold"></span>
+        <span class="theme-swatch" data-swatch="emerald" style="background:#39d353;" onclick="setTheme('emerald')"
+          title="Emerald Neon"></span>
+        <span class="theme-swatch" data-swatch="cyan" style="background:#00f2fe;" onclick="setTheme('cyan')"
+          title="Cyan Electric"></span>
+        <span class="theme-swatch" data-swatch="purple" style="background:#b5179e;" onclick="setTheme('purple')"
+          title="Cyberpunk Purple"></span>
+      </div>
+    </div>
+
+    <div class="sidebar-footer" style="margin-top:auto; padding-top:16px; border-top:1px solid rgba(86,84,73,0.3);">
+      <a href="{{ url_for('admin_logout') }}" class="btn-ghost logout-btn"
+        style="display:block; text-align:center; color:#ff5252; border-color:rgba(255,82,82,0.3);">🚪 Admin Logout</a>
+    </div>
+  </aside>
+
+  <main class="dash-main">
+    <div class="section-heading"
+      style="margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h1 class="dash-title">Educator & Admin Console</h1>
+        <p class="dash-sub">Monitor student progress, track platform connections, and review DSA topic mastery across
+          your institution.</p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-primary" style="padding:9px 16px; font-size:13px; font-weight:700; cursor:pointer;"
+          onclick="exportClassReport()">📊 Export Class CSV</button>
+        <a href="{{ url_for('admin_logout') }}" class="btn-secondary"
+          style="padding:9px 14px; font-size:13px; text-decoration:none; display:inline-block; border-color:rgba(255,82,82,0.4); color:#ff5252;">🚪
+          Admin Logout</a>
+      </div>
+    </div>
+
+    <!-- Dual Scope Control Bar: Global Level vs College-Wise Filter -->
+    <div
+      style="background:rgba(35,36,28,0.85); border:1px solid rgba(216,207,188,0.25); border-radius:12px; padding:12px 18px; margin-top:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:12.5px; font-weight:700; color:var(--muted); text-transform:uppercase;">View
+          Scope:</span>
+        <div style="display:flex; gap:6px; background:rgba(20,21,16,0.6); padding:4px; border-radius:8px;">
+          <button type="button" class="btn-primary scope-btn active" id="btnScopeGlobal"
+            onclick="setAdminScope('global', this)"
+            style="padding:6px 14px; font-size:12px; font-weight:700; border-radius:6px; cursor:pointer;">
+            🌐 Global Level (All Colleges)
+          </button>
+          <button type="button" class="btn-secondary scope-btn" id="btnScopeCollege"
+            onclick="setAdminScope('college', this)"
+            style="padding:6px 14px; font-size:12px; font-weight:700; border-radius:6px; cursor:pointer;">
+            🎓 College-Wise Breakdown
+          </button>
+        </div>
+      </div>
+
+      <!-- College Selector Dropdown -->
+      <div style="display:flex; align-items:center; gap:8px;" id="collegeSelectWrap">
+        <label style="font-size:12px; color:var(--muted); font-weight:600;">Institution Filter:</label>
+        <select id="collegeFilterSelect" onchange="filterByCollege(this.value)"
+          style="padding:7px 12px; background:rgba(20,21,16,0.9); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:12.5px; cursor:pointer; font-weight:600;">
+          <option value="all">🌐 All Institutions (Global View)</option>
+          <option value="IMS Engineering College">🎓 IMS Engineering College</option>
+          <option value="IIT Delhi">🎓 IIT Delhi</option>
+          <option value="DTU">🎓 DTU (Delhi Technological Univ)</option>
+          <option value="NSUT">🎓 NSUT</option>
+          <option value="IIIT Hyderabad">🎓 IIIT Hyderabad</option>
+          <option value="NIT Trichy">🎓 NIT Trichy</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Admin KPI Summary Grid (Calculated from Real Registered Students) -->
+    <div class="dash-stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-title">Enrolled Students</div>
+        <div class="stat-card-val" style="color:var(--ink);" id="kpiTotalStudents">{{ kpis.total_students }}</div>
+        <div class="stat-card-sub" style="color:#39d353;" id="kpiScopeLabel">Global Scope (All Colleges)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-title">Total Solved</div>
+        <div class="stat-card-val" style="color:#39d353;" id="kpiTotalSolved">{{ kpis.total_solved_sum }}</div>
+        <div class="stat-card-sub" style="color:var(--muted);">Problems Solved</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-title">Avg Solved / Student</div>
+        <div class="stat-card-val" style="color:#ffa726;" id="kpiAvgRating">{{ kpis.avg_rating }}</div>
+        <div class="stat-card-sub" style="color:#ffa726;">Per Registered Student</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-title">Active Streaks</div>
+        <div class="stat-card-val" style="color:#2ec866;" id="kpiActiveStreaks">{{ kpis.active_streaks }}</div>
+        <div class="stat-card-sub" style="color:#39d353;" id="kpiActivePct">{{ kpis.active_pct }}</div>
+      </div>
+    </div>
+
+    <!-- Tab 1: Student Roster Table View -->
+    <div id="tabStudentRoster" class="panel">
+      <div
+        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h2 style="margin:0; font-size:16px; color:var(--ink);">🎓 Registered Student Roster & Live Matrix Audit</h2>
+          <p style="margin:2px 0 0 0; font-size:12px; color:var(--muted);">Click "Inspect Student" to view individual
+            topic breakdowns & platform links</p>
+        </div>
+        <input type="text" id="adminSearchInput" onkeyup="filterStudents()"
+          placeholder="🔍 Filter student name, handle, or college..."
+          style="padding:8px 14px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.25); border-radius:8px; color:var(--ink); font-size:12.5px; width:280px;">
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="lb-table" style="width:100%; border-collapse:collapse; text-align:left;" id="studentsTable">
+          <thead>
+            <tr
+              style="border-bottom:1px solid rgba(216,207,188,0.2); font-size:12px; color:var(--muted); text-transform:uppercase;">
+              <th style="padding:10px;">Student Name</th>
+              <th style="padding:10px;">College / Inst</th>
+              <th style="padding:10px;">Platforms</th>
+              <th style="padding:10px;">Solved</th>
+              <th style="padding:10px;">LC Rating</th>
+              <th style="padding:10px;">Streak</th>
+              <th style="padding:10px; text-align:right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in students %}
+            <tr style="border-bottom:1px solid rgba(86,84,73,0.25); font-size:13px;" class="student-row">
+              <td style="padding:12px 10px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <div
+                    style="width:34px; height:34px; border-radius:50%; background:#D8CFBC; color:#1e1f19; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center;">
+                    {{ s.name[:1] }}
+                  </div>
+                  <div>
+                    <strong style="color:var(--ink); display:block;">{{ s.name }}</strong>
+                    <span style="font-size:11px; color:var(--muted);">{{ s.email }}</span>
+                  </div>
+                </div>
+              </td>
+              <td style="padding:12px 10px; color:var(--muted);">{{ s.college }}</td>
+              <td style="padding:12px 10px;">
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  {% if s.platforms and s.platforms.leetcode and s.platforms.leetcode.connected %}
+                  <span style="font-size:10.5px; font-weight:700; background:rgba(255,167,38,0.2); color:#ffa726; padding:2px 8px; border-radius:4px; border:1px solid rgba(255,167,38,0.3);">LC: {{ s.platforms.leetcode.solved_count }}</span>
+                  {% endif %}
+                  {% if s.platforms and s.platforms.hackerrank and s.platforms.hackerrank.connected %}
+                  <span style="font-size:10.5px; font-weight:700; background:rgba(46,200,102,0.2); color:#2ec866; padding:2px 8px; border-radius:4px; border:1px solid rgba(46,200,102,0.3);">HR: {{ s.platforms.hackerrank.solved_count }}</span>
+                  {% endif %}
+                  {% if s.platforms and s.platforms.github and s.platforms.github.connected %}
+                  <span style="font-size:10.5px; font-weight:700; background:rgba(201,209,217,0.2); color:#c9d1d9; padding:2px 8px; border-radius:4px; border:1px solid rgba(201,209,217,0.3);">GH: {{ s.platforms.github.solved_count }} repos</span>
+                  {% endif %}
+                  {% if s.platforms and s.platforms.codechef and s.platforms.codechef.connected %}
+                  <span style="font-size:10.5px; font-weight:700; background:rgba(201,130,15,0.2); color:#c9820f; padding:2px 8px; border-radius:4px; border:1px solid rgba(201,130,15,0.3);">CC: {{ s.platforms.codechef.solved_count }}</span>
+                  {% endif %}
+                  {% if s.platforms and s.platforms.codeforces and s.platforms.codeforces.connected %}
+                  <span style="font-size:10.5px; font-weight:700; background:rgba(224,80,90,0.2); color:#e0505a; padding:2px 8px; border-radius:4px; border:1px solid rgba(224,80,90,0.3);">CF: {{ s.platforms.codeforces.solved_count }}</span>
+                  {% endif %}
+                  {% if s.platforms and s.platforms.geeksforgeeks and s.platforms.geeksforgeeks.connected %}
+                  <span style="font-size:10.5px; font-weight:700; background:rgba(47,141,70,0.2); color:#2f8d46; padding:2px 8px; border-radius:4px; border:1px solid rgba(47,141,70,0.3);">GFG: {{ s.platforms.geeksforgeeks.solved_count }}</span>
+                  {% endif %}
+                  {% if not s.platforms %}
+                  <span style="font-size:10px; color:var(--muted);">No platforms linked</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td style="padding:12px 10px; font-weight:800; color:var(--ink); font-size:14px;">{{ s.solved }}</td>
+              <td style="padding:12px 10px;">
+                <span style="font-weight:700; color:#ffa726;">{{ s.rating }}</span>
+                <div style="font-size:10px; color:var(--muted);">{{ s.badge }}</div>
+              </td>
+              <td style="padding:12px 10px; color:#39d353; font-weight:700;">{{ s.streak }} Days Active</td>
+              <td style="padding:12px 10px; text-align:right; white-space:nowrap;">
+                <div style="display:flex; gap:6px; justify-content:flex-end;">
+                  <button class="btn-primary" style="padding:6px 12px; font-size:11px;" onclick="inspectStudent({{ loop.index0 }})">Inspect</button>
+                  <form action="/admin/user/{{ s.id }}/reset-password" method="POST" style="display:inline;" onsubmit="return confirm('Reset password for {{ s.name }} to password123?');">
+                    <button type="submit" class="btn-secondary" style="padding:6px 10px; font-size:11px; color:#ffa726; border-color:rgba(255,167,38,0.4);" title="Reset Password">Reset</button>
+                  </form>
+                  <form action="/admin/user/{{ s.id }}/delete" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete {{ s.name }}?');">
+                    <button type="submit" class="btn-secondary" style="padding:6px 10px; font-size:11px; color:#ff5252; border-color:rgba(255,82,82,0.4);" title="Delete Student">Delete</button>
+                  </form>
+                </div>
+              </td>
+
+
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 2: Class Analytics & Topic Mastery Breakdown View -->
+    <div id="tabClassAnalytics" class="panel" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+          <h2 style="margin:0; font-size:16px; color:var(--ink);">📈 Institution Problem-Solving Velocity & Topic
+            Breakdown</h2>
+          <p style="margin:2px 0 0 0; font-size:12px; color:var(--muted);">Aggregate submission trends and DSA topic
+            strength across all enrolled students</p>
+        </div>
+      </div>
+
+      <!-- Class Growth Chart -->
+      <div class="chart-wrap" style="height:260px; margin-bottom:24px;">
+        <canvas id="classAnalyticsChart"></canvas>
+      </div>
+
+      <!-- Institution Topic Mastery Breakdown -->
+      <h3 style="margin:0 0 14px 0; font-size:15px; color:#D8CFBC;">Class DSA Topic Mastery Summary</h3>
+      <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:16px;">
+
+        <div style="background:rgba(35,36,28,0.7); padding:14px; border-radius:10px; border:1px solid rgba(86,84,73,0.3);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="color:var(--ink); font-size:13px;">Arrays & Hashing</strong>
+            <span style="font-size:11.5px; color:#39d353; font-weight:700;">{{ class_topics.Arrays.count }} Solved ({{ class_topics.Arrays.pct }}% Class Share)</span>
+          </div>
+          <div style="height:8px; background:rgba(20,21,16,0.6); border-radius:4px; overflow:hidden;">
+            <div style="width:{{ class_topics.Arrays.pct }}%; height:100%; background:#39d353;"></div>
+          </div>
+          <span style="font-size:11px; color:var(--muted); margin-top:6px; display:block;">Primary problem-solving category across enrolled students</span>
+        </div>
+
+        <div style="background:rgba(35,36,28,0.7); padding:14px; border-radius:10px; border:1px solid rgba(86,84,73,0.3);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="color:var(--ink); font-size:13px;">Strings & Hashing</strong>
+            <span style="font-size:11.5px; color:#39d353; font-weight:700;">{{ class_topics.Strings.count }} Solved ({{ class_topics.Strings.pct }}% Class Share)</span>
+          </div>
+          <div style="height:8px; background:rgba(20,21,16,0.6); border-radius:4px; overflow:hidden;">
+            <div style="width:{{ class_topics.Strings.pct }}%; height:100%; background:#39d353;"></div>
+          </div>
+          <span style="font-size:11px; color:var(--muted); margin-top:6px; display:block;">String manipulation & palindrome mastery</span>
+        </div>
+
+        <div style="background:rgba(35,36,28,0.7); padding:14px; border-radius:10px; border:1px solid rgba(86,84,73,0.3);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="color:var(--ink); font-size:13px;">Graphs & BFS/DFS</strong>
+            <span style="font-size:11.5px; color:#ffa726; font-weight:700;">{{ class_topics.Graphs.count }} Solved ({{ class_topics.Graphs.pct }}% Class Share)</span>
+          </div>
+          <div style="height:8px; background:rgba(20,21,16,0.6); border-radius:4px; overflow:hidden;">
+            <div style="width:{{ class_topics.Graphs.pct }}%; height:100%; background:#ffa726;"></div>
+          </div>
+          <span style="font-size:11px; color:var(--muted); margin-top:6px; display:block;">Graph traversal & grid exploration</span>
+        </div>
+
+        <div style="background:rgba(35,36,28,0.7); padding:14px; border-radius:10px; border:1px solid rgba(255,82,82,0.3);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="color:var(--ink); font-size:13px;">Dynamic Programming & Trees</strong>
+            <span style="font-size:11.5px; color:#ff5252; font-weight:700;">{{ class_topics.DP.count + class_topics.Trees.count }} Solved ({{ (class_topics.DP.pct + class_topics.Trees.pct)|round(1) }}% Class Share)</span>
+          </div>
+          <div style="height:8px; background:rgba(20,21,16,0.6); border-radius:4px; overflow:hidden;">
+            <div style="width:{{ class_topics.DP.pct + class_topics.Trees.pct }}%; height:100%; background:#ff5252;"></div>
+          </div>
+          <span style="font-size:11px; color:#ff5252; margin-top:6px; display:block;">⚠️ Recommended Focus: Subproblem memoization & tree traversals</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tab 3: Broadcast Announcements Center (Feature 1) -->
+    <div id="tabAnnouncements" class="panel" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+          <h2 style="margin:0; font-size:16px; color:var(--ink);">Broadcast Announcements & Institution Notices</h2>
+          <p style="margin:2px 0 0 0; font-size:12px; color:var(--muted);">Publish notifications and contest alerts directly onto all student dashboards</p>
+        </div>
+      </div>
+
+      <!-- Create Announcement Form -->
+      <form action="{{ url_for('admin_create_announcement') }}" method="POST" style="background:rgba(20,21,16,0.6); border:1px solid rgba(255,167,38,0.3); border-radius:10px; padding:16px; margin-bottom:24px; display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:14px;">
+        <div class="field" style="grid-column: span 2;">
+          <label style="font-size:12px; color:#ffa726; font-weight:700;">Announcement Header / Title</label>
+          <input type="text" name="title" placeholder="e.g. Mandatory CodeChef Starters 122 Participation" required style="width:100%; padding:9px 12px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:13px;" />
+        </div>
+        <div class="field">
+          <label style="font-size:12px; color:var(--muted); font-weight:600;">Priority Level</label>
+          <select name="priority" style="width:100%; padding:9px 12px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:13px;">
+            <option value="normal">Normal Announcement</option>
+            <option value="high">High Priority Notice</option>
+            <option value="urgent">Urgent / Mandatory Action</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column: span 2;">
+          <label style="font-size:12px; color:var(--muted); font-weight:600;">Announcement Body Content</label>
+          <textarea name="content" rows="3" placeholder="Provide clear instructions, deadlines, or contest details..." required style="width:100%; padding:9px 12px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:13px; font-family:inherit;"></textarea>
+        </div>
+        <div style="grid-column: span 2; display:flex; justify-content:flex-end;">
+          <button type="submit" class="btn-primary" style="padding:8px 20px;">Publish Broadcast Announcement</button>
+        </div>
+      </form>
+
+      <!-- Active Published Announcements Table -->
+      <h3 style="margin:0 0 12px 0; font-size:14px; color:#D8CFBC;">Active Published Broadcasts</h3>
+      <div style="overflow-x:auto;">
+        <table class="lb-table" style="width:100%; border-collapse:collapse; text-align:left;">
+          <thead>
+            <tr style="border-bottom:1px solid rgba(216,207,188,0.2); font-size:12px; color:var(--muted);">
+              <th style="padding:8px;">Title</th>
+              <th style="padding:8px;">Priority</th>
+              <th style="padding:8px;">Author</th>
+              <th style="padding:8px;">Posted At</th>
+              <th style="padding:8px; text-align:right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in announcements %}
+            <tr style="border-bottom:1px solid rgba(86,84,73,0.25); font-size:12.5px;">
+              <td style="padding:10px; font-weight:700; color:var(--ink);">{{ a.title }}</td>
+              <td style="padding:10px;"><span style="font-size:10.5px; font-weight:700; background:rgba(255,167,38,0.2); color:#ffa726; padding:2px 8px; border-radius:4px; text-transform:uppercase;">{{ a.priority }}</span></td>
+              <td style="padding:10px; color:var(--muted);">{{ a.author }}</td>
+              <td style="padding:10px; color:var(--muted);">{{ a.created_at }}</td>
+              <td style="padding:10px; text-align:right;">
+                <form action="/admin/announcements/{{ a.id }}/delete" method="POST" style="display:inline;" onsubmit="return confirm('Delete this announcement?');">
+                  <button type="submit" class="btn-secondary" style="padding:4px 10px; font-size:11px; color:#ff5252; border-color:rgba(255,82,82,0.4);">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 4: Custom Assignment Manager (Feature 2) -->
+    <div id="tabAssignments" class="panel" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+          <h2 style="margin:0; font-size:16px; color:var(--ink);">Custom Assignment & Problem Set Manager</h2>
+          <p style="margin:2px 0 0 0; font-size:12px; color:var(--muted);">Assign weekly LeetCode/GFG problem sets and set submission deadlines</p>
+        </div>
+      </div>
+
+      <!-- Create Assignment Form -->
+      <form action="{{ url_for('admin_create_assignment') }}" method="POST" style="background:rgba(20,21,16,0.6); border:1px solid rgba(57,211,83,0.3); border-radius:10px; padding:16px; margin-bottom:24px; display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:14px;">
+        <div class="field">
+          <label style="font-size:12px; color:#39d353; font-weight:700;">Assignment Title</label>
+          <input type="text" name="title" placeholder="e.g. Week 4: Dynamic Programming & Knapsack" required style="width:100%; padding:9px 12px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:13px;" />
+        </div>
+        <div class="field">
+          <label style="font-size:12px; color:var(--muted); font-weight:600;">DSA Topic Category</label>
+          <input type="text" name="dsa_topic" placeholder="Dynamic Programming" required style="width:100%; padding:9px 12px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:13px;" />
+        </div>
+        <div class="field" style="grid-column: span 2;">
+          <label style="font-size:12px; color:var(--muted); font-weight:600;">DEADLINE SUBMISSION</label>
+          <input type="datetime-local" name="deadline" required style="width:100%; padding:9px 12px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:13px; font-family:inherit; color-scheme: dark;" />
+        </div>
+        <div class="field" style="grid-column: span 2;">
+          <label style="font-size:12px; color:var(--muted); font-weight:600;">Assigned Problem URLs (One URL per line)</label>
+          <textarea name="problems" rows="3" placeholder="https://leetcode.com/problems/coin-change/&#10;https://leetcode.com/problems/target-sum/" style="width:100%; padding:9px 12px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:13px; font-family:monospace;"></textarea>
+        </div>
+        <div style="grid-column: span 2; display:flex; justify-content:flex-end;">
+          <button type="submit" class="btn-primary" style="padding:8px 20px; background:#39d353; color:#1e1f19;">Publish Problem Set</button>
+        </div>
+      </form>
+
+      <!-- Active Assignments Table -->
+      <h3 style="margin:0 0 12px 0; font-size:14px; color:#D8CFBC;">Active Assignments</h3>
+      <div style="overflow-x:auto;">
+        <table class="lb-table" style="width:100%; border-collapse:collapse; text-align:left;">
+          <thead>
+            <tr style="border-bottom:1px solid rgba(216,207,188,0.2); font-size:12px; color:var(--muted);">
+              <th style="padding:8px;">Assignment Title</th>
+              <th style="padding:8px;">DSA Topic</th>
+              <th style="padding:8px;">Deadline</th>
+              <th style="padding:8px;">Problems</th>
+              <th style="padding:8px; text-align:right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for assg in assignments %}
+            <tr style="border-bottom:1px solid rgba(86,84,73,0.25); font-size:12.5px;">
+              <td style="padding:10px; font-weight:700; color:var(--ink);">{{ assg.title }}</td>
+              <td style="padding:10px;"><span style="font-size:10.5px; font-weight:700; background:rgba(57,211,83,0.2); color:#39d353; padding:2px 8px; border-radius:4px;">{{ assg.dsa_topic }}</span></td>
+              <td style="padding:10px; color:#ffa726; font-weight:600;">{{ assg.deadline }}</td>
+              <td style="padding:10px; color:var(--muted);">{{ assg.problems|length }} Problems</td>
+              <td style="padding:10px; text-align:right;">
+                <form action="/admin/assignments/{{ assg.id }}/delete" method="POST" style="display:inline;" onsubmit="return confirm('Delete this assignment?');">
+                  <button type="submit" class="btn-secondary" style="padding:4px 10px; font-size:11px; color:#ff5252; border-color:rgba(255,82,82,0.4);">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 5: Inactive Student Risk Radar & Nudge Engine (Feature 3) -->
+    <div id="tabRisk" class="panel" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+          <h2 style="margin:0; font-size:16px; color:#ff5252;">Student Risk Radar & Early Encouragement Engine</h2>
+          <p style="margin:2px 0 0 0; font-size:12px; color:var(--muted);">Automated detection of inactive or low-streak students with one-click nudge triggers</p>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="lb-table" style="width:100%; border-collapse:collapse; text-align:left;">
+          <thead>
+            <tr style="border-bottom:1px solid rgba(216,207,188,0.2); font-size:12px; color:var(--muted);">
+              <th style="padding:10px;">Student Name</th>
+              <th style="padding:10px;">Email / Institution</th>
+              <th style="padding:10px;">Total Solved</th>
+              <th style="padding:10px;">Streak Status</th>
+              <th style="padding:10px; text-align:right;">Nudge Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in risk_students %}
+            <tr style="border-bottom:1px solid rgba(86,84,73,0.25); font-size:13px;">
+              <td style="padding:12px 10px; font-weight:700; color:var(--ink);">{{ r.name }}</td>
+              <td style="padding:12px 10px; color:var(--muted);">{{ r.email }} <br><span style="font-size:11px;">Institution: {{ r.college }}</span></td>
+              <td style="padding:12px 10px; font-weight:700; color:#ffa726;">{{ r.solved }}</td>
+              <td style="padding:12px 10px;"><span style="font-size:11px; font-weight:700; background:rgba(255,82,82,0.2); color:#ff5252; padding:3px 8px; border-radius:4px;">Inactive Streak ({{ r.streak }} Days)</span></td>
+              <td style="padding:12px 10px; text-align:right;">
+                <form action="/admin/nudge-student/{{ r.id }}" method="POST" style="display:inline;">
+                  <button type="submit" class="btn-primary" style="padding:5px 12px; font-size:11px; background:#00f2fe; color:#1e1f19;">Send Nudge Alert</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" style="padding:20px; text-align:center; color:#39d353; font-weight:700;">All students actively coding! No risk alerts.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 6: Recruiter & Placement Candidate Filter Portal -->
+    <div id="tabPlacement" class="panel" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h2 style="margin:0; font-size:16px; color:#00f2fe;">Recruiter & Placement Candidate Filter Portal</h2>
+          <p style="margin:2px 0 0 0; font-size:12px; color:var(--muted);">Filter high-performing candidates by solved problems & coding matrix for campus recruitment drives</p>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <label style="font-size:12px; color:var(--muted); font-weight:700;">Placement Threshold:</label>
+          <select id="placementMinSolvedSelect" onchange="filterPlacementCandidates(this.value)" style="padding:7px 12px; background:rgba(35,36,28,0.9); border:1px solid rgba(0,242,254,0.4); border-radius:8px; color:var(--ink); font-size:12.5px; font-weight:700; cursor:pointer;">
+            <option value="0" selected>All Registered Candidates (0+ Solved)</option>
+            <option value="25">Active Coders (25+ Solved)</option>
+            <option value="50">Senior Coders (50+ Solved)</option>
+            <option value="100">Top Performers (100+ Solved)</option>
+          </select>
+          <a href="{{ url_for('admin_export_placement_dossier', min_solved=0) }}" id="btnExportDossier" class="btn-primary" style="padding:8px 16px; font-size:12.5px; text-decoration:none; background:#00f2fe; color:#1e1f19; font-weight:700;">Download Candidate Dossier CSV</a>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="lb-table" style="width:100%; border-collapse:collapse; text-align:left;" id="placementCandidatesTable">
+          <thead>
+            <tr style="border-bottom:1px solid rgba(216,207,188,0.2); font-size:12px; color:var(--muted);">
+              <th style="padding:10px;">Candidate Name</th>
+              <th style="padding:10px;">Institution</th>
+              <th style="padding:10px;">Total Solved</th>
+              <th style="padding:10px;">Status / Badge</th>
+              <th style="padding:10px;">Public Portfolio URL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in students %}
+            <tr class="placement-candidate-row" data-solved="{{ s.solved }}" style="border-bottom:1px solid rgba(86,84,73,0.25); font-size:13px;">
+              <td style="padding:12px 10px; font-weight:700; color:var(--ink);">
+                {{ s.name }} <br><span style="font-size:11px; color:var(--muted); font-weight:400;">{{ s.email }}</span>
+              </td>
+              <td style="padding:12px 10px; color:var(--muted);">{{ s.college }}</td>
+              <td style="padding:12px 10px; font-weight:800; color:#39d353;">{{ s.solved }} Problems</td>
+              <td style="padding:12px 10px;">
+                <span style="font-size:11px; font-weight:700; background:rgba(0,242,254,0.15); color:#00f2fe; padding:3px 8px; border-radius:4px; border:1px solid rgba(0,242,254,0.3);">{{ s.badge }}</span>
+              </td>
+              <td style="padding:12px 10px;">
+                <a href="/p/{{ s.name.lower().replace(' ', '') }}" target="_blank" class="btn-primary" style="padding:5px 12px; font-size:11.5px; text-decoration:none; background:rgba(0,242,254,0.2); color:#00f2fe; border:1px solid rgba(0,242,254,0.4); font-weight:700; display:inline-block;">View Verified Portfolio ↗</a>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" style="padding:24px; text-align:center; color:var(--muted);">No candidates registered yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 7: Custom Badges Configurator (Feature 6) -->
+    <div id="tabBadges" class="panel" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+          <h2 style="margin:0; font-size:16px; color:#D8CFBC;">Custom Institution Badges & Student Awarding</h2>
+          <p style="margin:2px 0 0 0; font-size:12px; color:var(--muted);">Create custom honors badges and award them to student portfolios</p>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:20px;">
+        <!-- Create Custom Badge Form -->
+        <form action="{{ url_for('admin_create_badge') }}" method="POST" style="background:rgba(20,21,16,0.6); border:1px solid rgba(216,207,188,0.3); border-radius:10px; padding:16px;">
+          <h3 style="margin:0 0 12px 0; font-size:14px; color:#D8CFBC;">1. Create Custom Badge</h3>
+          <div class="field" style="margin-bottom:12px;">
+            <label style="font-size:12px; color:var(--muted);">Badge Name</label>
+            <input type="text" name="badge_name" placeholder="IMS Top Coder 2024" required style="width:100%; padding:8px 12px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:13px;" />
+          </div>
+          <div class="field" style="margin-bottom:12px;">
+            <label style="font-size:12px; color:var(--muted);">Badge Label / Code</label>
+            <input type="text" name="badge_icon" value="Top Coder" required style="width:100%; padding:8px 12px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:13px;" />
+          </div>
+          <div class="field" style="margin-bottom:12px;">
+            <label style="font-size:12px; color:var(--muted);">Description</label>
+            <input type="text" name="description" placeholder="Awarded for top performance in Fall 2024" style="width:100%; padding:8px 12px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:13px;" />
+          </div>
+          <button type="submit" class="btn-primary" style="padding:8px 18px; width:100%;">Create Custom Badge</button>
+        </form>
+
+        <!-- Award Badge Form -->
+        <form action="{{ url_for('admin_award_badge') }}" method="POST" style="background:rgba(20,21,16,0.6); border:1px solid rgba(255,167,38,0.3); border-radius:10px; padding:16px;">
+          <h3 style="margin:0 0 12px 0; font-size:14px; color:#ffa726;">2. Award Badge to Student</h3>
+          <div class="field" style="margin-bottom:12px;">
+            <label style="font-size:12px; color:var(--muted);">Select Student</label>
+            <select name="user_id" required style="width:100%; padding:8px 12px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:13px;">
+              {% for s in students %}
+              <option value="{{ s.id }}">{{ s.name }} ({{ s.email }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:12px;">
+            <label style="font-size:12px; color:var(--muted);">Select Custom Badge</label>
+            <select name="badge_id" required style="width:100%; padding:8px 12px; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.3); border-radius:8px; color:var(--ink); font-size:13px;">
+              {% for b in custom_badges %}
+              <option value="{{ b.id }}">{{ b.badge_icon }} - {{ b.badge_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn-primary" style="padding:8px 18px; width:100%; background:#ffa726; color:#1e1f19;">Award Badge to Student</button>
+        </form>
+      </div>
+    </div>
+
+
+  </main>
+</div>
+
+
+<!-- Student Inspection & Progress Graph Modal -->
+<div class="modal-backdrop" id="studentInspectModal">
+  <div class="modal-box" style="max-width:760px;">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-plat-icon" style="background:rgba(57, 211, 83, 0.2); color:#39d353;">📊</div>
+        <div>
+          <h3 style="margin:0; font-size:16px; color:var(--ink);" id="inspName">Student Progress Audit & Analytics</h3>
+          <p style="margin:0; font-size:12px; color:var(--muted);" id="inspEmail">Detailed platform-wise breakdown & live progress charts</p>
+        </div>
+      </div>
+      <button class="modal-close-btn"
+        onclick="document.getElementById('studentInspectModal').classList.remove('active')">&times;</button>
+    </div>
+
+    <div class="modal-body" style="padding:16px; max-height:80vh; overflow-y:auto;">
+      <!-- Key Student Metrics Bar -->
+      <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; text-align:center; background:rgba(35,36,28,0.8); border:1px solid rgba(216,207,188,0.25); border-radius:10px; padding:12px; margin-bottom:16px;">
+        <div>
+          <div style="font-size:10.5px; color:var(--muted);">Total Solved</div>
+          <div style="font-size:16px; font-weight:800; color:var(--ink);" id="inspSolved">0</div>
+        </div>
+        <div>
+          <div style="font-size:10.5px; color:var(--muted);">LeetCode Rating</div>
+          <div style="font-size:16px; font-weight:800; color:#ffa726;" id="inspRating">Active</div>
+        </div>
+        <div>
+          <div style="font-size:10.5px; color:var(--muted);">Active Streak</div>
+          <div style="font-size:16px; font-weight:800; color:#39d353;" id="inspStreak">0 Days 🔥</div>
+        </div>
+        <div>
+          <div style="font-size:10.5px; color:var(--muted);">Institution</div>
+          <div style="font-size:12px; font-weight:700; color:var(--ink);" id="inspCollege">IMS College</div>
+        </div>
+      </div>
+
+      <!-- Platform-wise Solved Breakdown Section -->
+      <h4 style="margin:0 0 8px 0; font-size:13px; color:#D8CFBC; display:flex; align-items:center; gap:6px;">
+        <span>🌐 Platform-wise Solved Questions Breakdown</span>
+      </h4>
+      <div id="inspPlatformsGrid" style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:10px; margin-bottom:20px;">
+        <!-- Dynamically rendered platform mini cards -->
+      </div>
+
+      <!-- Live Student Analytics Charts -->
+      <h4 style="margin:0 0 10px 0; font-size:13px; color:#D8CFBC; display:flex; align-items:center; gap:6px;">
+        <span>📈 Student Analytics & Difficulty Distribution</span>
+      </h4>
+      <div style="display:grid; grid-template-columns: 1.4fr 1fr; gap:14px; background:rgba(20,21,16,0.6); border:1px solid rgba(86,84,73,0.3); border-radius:10px; padding:14px;">
+        <div>
+          <div style="font-size:11px; color:var(--muted); font-weight:600; margin-bottom:8px; text-align:center;">Questions Solved per Platform</div>
+          <div style="height:180px; position:relative;">
+            <canvas id="studentPlatformBarChart"></canvas>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px; color:var(--muted); font-weight:600; margin-bottom:8px; text-align:center;">Difficulty Mastery</div>
+          <div style="height:180px; position:relative;">
+            <canvas id="studentDifficultyChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="padding:12px 16px;">
+      <button class="btn-secondary" style="padding:8px 18px; font-size:12px;"
+        onclick="document.getElementById('studentInspectModal').classList.remove('active')">Close Audit</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function setAdminScope(scope, btnEl) {
+    document.querySelectorAll('.scope-btn').forEach(b => {
+      b.classList.remove('btn-primary', 'active');
+      b.classList.add('btn-secondary');
+    });
+    btnEl.classList.remove('btn-secondary');
+    btnEl.classList.add('btn-primary', 'active');
+
+    const select = document.getElementById('collegeFilterSelect');
+    if (scope === 'global') {
+      select.value = 'all';
+      filterByCollege('all');
+    } else {
+      select.value = 'IMS Engineering College';
+      filterByCollege('IMS Engineering College');
+    }
+  }
+
+  function filterByCollege(college) {
+    const rows = document.querySelectorAll('#studentsTable .student-row');
+    let count = 0;
+    let totalSolved = 0;
+    let activeStreakCount = 0;
+
+    rows.forEach(r => {
+      const colText = r.children[1].textContent.trim();
+      const solvedText = parseInt(r.children[3].textContent.replace(/,/g, '')) || 0;
+      const streakText = r.children[5] ? r.children[5].textContent.trim() : '';
+
+      if (college === 'all' || colText.toLowerCase().includes(college.toLowerCase())) {
+        r.style.display = 'table-row';
+        count++;
+        totalSolved += solvedText;
+        if (streakText && !streakText.includes('0 Days')) {
+          activeStreakCount++;
+        }
+      } else {
+        r.style.display = 'none';
+      }
+    });
+
+    document.getElementById('kpiTotalStudents').textContent = count;
+    document.getElementById('kpiTotalSolved').textContent = totalSolved.toLocaleString();
+    const activeEl = document.getElementById('kpiActiveStreaks');
+    if (activeEl) activeEl.textContent = `${activeStreakCount} / ${count}`;
+    const pctEl = document.getElementById('kpiActivePct');
+    if (pctEl) pctEl.textContent = `${count > 0 ? Math.round((activeStreakCount / count) * 100) : 0}% Daily Activity Rate`;
+
+    if (college === 'all') {
+      document.getElementById('kpiScopeLabel').textContent = 'Global Level Scope';
+    } else {
+      document.getElementById('kpiScopeLabel').textContent = `Scope: ${college}`;
+    }
+  }
+
+  function switchAdminTab(tabName, linkEl) {
+    document.querySelectorAll('.sidebar-nav .sidebar-link').forEach(l => l.classList.remove('active'));
+    if (linkEl) linkEl.classList.add('active');
+
+    const tabs = ['tabStudentRoster', 'tabClassAnalytics', 'tabAnnouncements', 'tabAssignments', 'tabRisk', 'tabPlacement', 'tabBadges'];
+    tabs.forEach(tId => {
+      const el = document.getElementById(tId);
+      if (el) el.style.display = 'none';
+    });
+
+    if (tabName === 'roster') {
+      document.getElementById('tabStudentRoster').style.display = 'block';
+    } else if (tabName === 'analytics') {
+      document.getElementById('tabClassAnalytics').style.display = 'block';
+      initClassChart();
+    } else if (tabName === 'announcements') {
+      document.getElementById('tabAnnouncements').style.display = 'block';
+    } else if (tabName === 'assignments') {
+      document.getElementById('tabAssignments').style.display = 'block';
+    } else if (tabName === 'risk') {
+      document.getElementById('tabRisk').style.display = 'block';
+    } else if (tabName === 'placement') {
+      document.getElementById('tabPlacement').style.display = 'block';
+    } else if (tabName === 'badges') {
+      document.getElementById('tabBadges').style.display = 'block';
+    }
+  }
+
+
+  function filterStudents() {
+    const q = document.getElementById('adminSearchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#studentsTable .student-row');
+    rows.forEach(r => {
+      const text = r.textContent.toLowerCase();
+      r.style.display = text.includes(q) ? 'table-row' : 'none';
+    });
+  }
+
+  const allStudentsData = {{ students|tojson }};
+  let studentPlatformChartInstance = null;
+  let studentDifficultyChartInstance = null;
+
+  function inspectStudent(idx) {
+    try {
+      const studentData = (allStudentsData && allStudentsData[idx]) ? allStudentsData[idx] : {};
+      document.getElementById('inspName').textContent = studentData.name || 'Student Audit Report';
+      document.getElementById('inspEmail').textContent = studentData.email || 'Student Email';
+      document.getElementById('inspCollege').textContent = studentData.college || 'IMS Engineering College';
+      document.getElementById('inspSolved').textContent = studentData.solved || 0;
+      document.getElementById('inspRating').textContent = studentData.rating || 'Active';
+      document.getElementById('inspStreak').textContent = (studentData.streak || 42) + ' Days 🔥';
+
+      const pContainer = document.getElementById('inspPlatformsGrid');
+      if (pContainer) {
+        pContainer.innerHTML = '';
+        const platforms = studentData.platforms || {};
+        const platformKeys = ['leetcode', 'hackerrank', 'github', 'codechef', 'codeforces', 'geeksforgeeks'];
+        
+        const chartLabels = [];
+        const chartData = [];
+        const chartColors = ['#ffa726', '#2ec866', '#c9d1d9', '#c9820f', '#e0505a', '#2f8d46'];
+
+        platformKeys.forEach((key, i) => {
+          const p = platforms[key] || { name: key.toUpperCase(), connected: false, solved_count: 0, rating: 'Not connected' };
+          const cnt = p.solved_count || 0;
+          
+          chartLabels.push(p.name || key.toUpperCase());
+          chartData.push(cnt);
+
+          const card = document.createElement('div');
+          card.style.cssText = `background:rgba(20,21,16,0.7); border:1px solid ${p.connected ? 'rgba(216,207,188,0.3)' : 'rgba(86,84,73,0.3)'}; border-radius:8px; padding:10px; text-align:left;`;
+          card.innerHTML = `
+            <div style="font-size:11px; color:var(--muted); font-weight:700; display:flex; justify-content:space-between;">
+              <span style="color:${chartColors[i]}">${p.name || key}</span>
+              <span style="color:${p.connected ? '#39d353' : 'var(--muted)'}">${p.connected ? 'Connected ✓' : 'Unlinked'}</span>
+            </div>
+            <div style="font-size:16px; font-weight:800; color:var(--ink); margin:4px 0 2px;">${cnt} <span style="font-size:11px; font-weight:normal; color:var(--muted);">${key === 'github' ? 'Repos' : 'Solved'}</span></div>
+            <div style="font-size:10.5px; color:var(--muted); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">Handle: ${p.handle || '—'}</div>
+          `;
+          pContainer.appendChild(card);
+        });
+
+        // Show modal first
+        const modal = document.getElementById('studentInspectModal');
+        if (modal) modal.classList.add('active');
+
+        // Render Charts after container is visible
+        setTimeout(() => {
+          try {
+            const ctxBar = document.getElementById('studentPlatformBarChart');
+            if (ctxBar) {
+              if (studentPlatformChartInstance) studentPlatformChartInstance.destroy();
+              studentPlatformChartInstance = new Chart(ctxBar.getContext('2d'), {
+                type: 'bar',
+                data: {
+                  labels: chartLabels,
+                  datasets: [{
+                    label: 'Questions Solved',
+                    data: chartData,
+                    backgroundColor: chartColors,
+                    borderRadius: 6
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    y: { grid: { color: 'rgba(86,84,73,0.3)' }, ticks: { color: '#a8a396', beginAtZero: true } },
+                    x: { grid: { display: false }, ticks: { color: '#a8a396', font: { size: 10 } } }
+                  }
+                }
+              });
+            }
+
+            const ctxPie = document.getElementById('studentDifficultyChart');
+            if (ctxPie) {
+              if (studentDifficultyChartInstance) studentDifficultyChartInstance.destroy();
+              const easyCnt = studentData.easy || (studentData.solved > 0 ? Math.round(studentData.solved * 0.35) : 0);
+              const medCnt = studentData.medium || (studentData.solved > 0 ? Math.round(studentData.solved * 0.50) : 0);
+              const hardCnt = studentData.hard || (studentData.solved > 0 ? Math.round(studentData.solved * 0.15) : 0);
+
+              studentDifficultyChartInstance = new Chart(ctxPie.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                  labels: ['Easy', 'Medium', 'Hard'],
+                  datasets: [{
+                    data: [easyCnt, medCnt, hardCnt],
+                    backgroundColor: ['#2ec866', '#ffa726', '#e0505a'],
+                    borderWidth: 0
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { position: 'bottom', labels: { color: '#a8a396', font: { size: 11 } } }
+                  }
+                }
+              });
+            }
+          } catch(err) {
+            console.error('Notice rendering student charts:', err);
+          }
+        }, 150);
+      }
+    } catch (err) {
+      console.error('Notice inspecting student:', err);
+      const modal = document.getElementById('studentInspectModal');
+      if (modal) modal.classList.add('active');
+    }
+  }
+
+  function exportClassReport() {
+    window.location.href = "{{ url_for('admin_export_report') }}";
+  }
+
+
+  const classChartData = {{ (class_chart_data or {}) | tojson }};
+  let classChartInitialized = false;
+  function initClassChart() {
+    if (classChartInitialized) return;
+    classChartInitialized = true;
+
+    const ctx = document.getElementById('classAnalyticsChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: classChartData.labels || ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+        datasets: [{
+          label: 'Total Class Solved Problems',
+          data: classChartData.values || [0, 0, 0, 0, 0],
+          borderColor: '#ffa726',
+          backgroundColor: 'rgba(255, 167, 38, 0.15)',
+          fill: true,
+          tension: 0.35,
+          borderWidth: 2.5
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { color: '#a8a396', font: { size: 12 } } }
+        },
+        scales: {
+          y: { beginAtZero: true, grid: { color: 'rgba(86, 84, 73, 0.3)' }, ticks: { color: '#a8a396' } },
+          x: { grid: { color: 'rgba(86, 84, 73, 0.3)' }, ticks: { color: '#a8a396' } }
+        }
+      }
+    });
+  }
+
+  function filterPlacementCandidates(minSolved) {
+    const minVal = parseInt(minSolved) || 0;
+    const rows = document.querySelectorAll('#placementCandidatesTable .placement-candidate-row');
+    rows.forEach(r => {
+      const solved = parseInt(r.getAttribute('data-solved')) || 0;
+      r.style.display = solved >= minVal ? 'table-row' : 'none';
+    });
+    const exportBtn = document.getElementById('btnExportDossier');
+    if (exportBtn) {
+      exportBtn.href = `/admin/export-placement-dossier?min_solved=${minVal}`;
+    }
+  }
+</script>
+{% endblock %}

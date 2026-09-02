@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Skill Stack{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        (function() {
+            var savedTheme = localStorage.getItem('skillstack_theme') || 'gold';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+        function setTheme(theme) {
+            localStorage.setItem('skillstack_theme', theme);
+            document.documentElement.setAttribute('data-theme', theme);
+            document.querySelectorAll('.theme-swatch').forEach(function(el) {
+                el.classList.toggle('active', el.getAttribute('data-swatch') === theme);
+            });
+        }
+    </script>
+</head>
+
+<body>
+    <div class="floating-stack" aria-hidden="true">
+        <div class="stack-glow"></div>
+        <div class="stack-layer stack-layer-1"></div>
+        <div class="stack-layer stack-layer-2"></div>
+        <div class="stack-layer stack-layer-3"></div>
+    </div>
+
+    <style>
+        .flash-stack {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 999999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 380px;
+            pointer-events: none;
+        }
+        .flash {
+            pointer-events: auto;
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity: 1;
+            transform: translateY(0);
+            cursor: pointer;
+        }
+        .flash-dismissing {
+            opacity: 0 !important;
+            transform: translateY(-20px) scale(0.95) !important;
+        }
+        .flash-success {
+            background: rgba(25, 45, 30, 0.95);
+            border: 1px solid rgba(57, 211, 83, 0.5);
+            color: #39d353;
+        }
+        .flash-error {
+            background: rgba(45, 25, 25, 0.95);
+            border: 1px solid rgba(255, 82, 82, 0.5);
+            color: #ff5252;
+        }
+        .flash-info, .flash-message {
+            background: rgba(35, 36, 28, 0.95);
+            border: 1px solid rgba(216, 207, 188, 0.3);
+            color: var(--ink);
+        }
+        .flash-close {
+            opacity: 0.7;
+            font-size: 16px;
+            line-height: 1;
+        }
+        .flash-close:hover { opacity: 1; }
+    </style>
+
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if messages %}
+    <div class="flash-stack">
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}" title="Click to dismiss">
+            <span>{{ message }}</span>
+            <span class="flash-close">&times;</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %} {% endwith %} {% block content %}{% endblock %}
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const flashes = document.querySelectorAll(".flash");
+            flashes.forEach(function(el) {
+                function dismiss() {
+                    if (el.classList.contains("flash-dismissing")) return;
+                    el.classList.add("flash-dismissing");
+                    setTimeout(function() {
+                        if (el.parentNode) el.parentNode.removeChild(el);
+                    }, 400);
+                }
+                // Auto dismiss after 3.5 seconds
+                setTimeout(dismiss, 3500);
+
+                // Manual dismiss on click
+                el.addEventListener("click", dismiss);
+            });
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

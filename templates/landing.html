@@ -1,0 +1,549 @@
+{% extends "base.html" %} {% block title %}Skill Stack — Your All-in-One Coding Portfolio{% endblock %} {% block content %}
+
+<nav class="land-nav">
+    <div class="brand">Skill<span>Stack</span></div>
+    <div class="land-nav-right">
+        {% if logged_in %}
+        <a href="{{ url_for('logout') }}" class="btn-ghost">Log out</a>
+        <a href="{{ url_for('dashboard') }}" class="btn-primary" style="padding:9px 20px;">Go to Dashboard →</a>
+        {% else %}
+        <a href="{{ url_for('login') }}" class="btn-ghost">Log in</a>
+        <a href="{{ url_for('signup') }}" class="btn-primary" style="padding:9px 20px;">Get started</a>
+        {% endif %}
+    </div>
+</nav>
+
+<header class="land-hero">
+    <p class="land-eyebrow">One profile. Every platform.</p>
+    <h1>Your Coding Journey,<br /><span class="accent-text">All in One Place</span></h1>
+    <p class="land-sub">
+        Connect LeetCode, GitHub, CodeChef, Codeforces and more. Skill Stack combines your problem-solving stats, projects, ratings, and badges into a single shareable developer profile.
+    </p>
+    <div class="land-cta-row">
+        <a href="{{ url_for('signup') }}" class="btn-primary" style="padding:13px 28px; font-size:15px;">Create your profile — it's free</a>
+    </div>
+
+    <div class="hero-search-box">
+        <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="demoUsername" placeholder="Search developer profile (e.g. prateekv, ananya, tourist)..." value="prateekv" autocomplete="off">
+            <a href="{{ url_for('login') }}" class="btn-primary btn-search-demo">Preview Profile</a>
+            <div class="search-results-dropdown" id="searchResultsDropdown"></div>
+        </div>
+        <div class="hero-ticker">
+            <span>🔥 <strong>10,000+</strong> Coders Joined</span>
+            <span>⚡ <strong>6+</strong> Platforms Synced</span>
+            <span>🏆 <strong>2,480</strong> Top Score</span>
+        </div>
+    </div>
+
+    <div class="land-preview">
+        <div class="preview-card preview-profile">
+            <div class="preview-avatar">PV</div>
+            <div class="preview-name">Prateek Vishwakarma</div>
+            <div class="preview-handle">@prateekv</div>
+            <div class="preview-stats-row">
+                <div><span>1010</span><small>Questions</small></div>
+                <div><span>348</span><small>Active days</small></div>
+            </div>
+        </div>
+        <div class="preview-card preview-stats">
+            <p class="preview-label">Total questions solved</p>
+            <p class="preview-big">1,010</p>
+            <div class="preview-mini-bars">
+                <span style="height:40%"></span><span style="height:70%"></span><span style="height:55%"></span>
+                <span style="height:90%"></span><span style="height:65%"></span><span style="height:80%"></span>
+            </div>
+        </div>
+    </div>
+</header>
+
+<section class="land-section">
+    <p class="land-eyebrow center">Works with the platforms you already use</p>
+    <h2 class="land-h2 center">Your Favourite Coding Platforms</h2>
+    <div class="platform-strip">
+        <div class="platform-pill"><span style="color:#ffa726;">LC</span> LeetCode</div>
+        <div class="platform-pill"><span style="color:#c9d1d9;">GH</span> GitHub</div>
+        <div class="platform-pill"><span style="color:#c9820f;">CC</span> CodeChef</div>
+        <div class="platform-pill"><span style="color:#e0505a;">CF</span> Codeforces</div>
+        <div class="platform-pill"><span style="color:#2f8d46;">GFG</span> GeeksforGeeks</div>
+        <div class="platform-pill"><span style="color:#2ec866;">HR</span> HackerRank</div>
+    </div>
+</section>
+
+<!-- Detailed Platform Intelligence Showcase (Codolio-style Cards) -->
+<section class="land-section">
+    <p class="land-eyebrow center">Platform Intelligence</p>
+    <h2 class="land-h2 center">Unified Ratings & Live Stats</h2>
+    <p class="land-sub center">Live breakdown of contest ratings, problem counts, and global percentile ranks across all connected coding platforms.</p>
+
+    <div class="platform-detail-grid">
+        <div class="plat-detail-card">
+            <div>
+                <div class="plat-detail-head">
+                    <div class="plat-brand"><span style="color:#ffa726; font-weight:700; font-family:var(--font-display);">LC</span> <strong>LeetCode</strong></div>
+                    <span class="plat-badge-pill">Knight 🛡️</span>
+                </div>
+                <div class="plat-big-rating">1,942 <small style="font-size:13px; color:var(--muted); font-weight:normal;">Rating</small></div>
+                <div class="plat-sub-info">Top 4.2% • 680 Problems Solved</div>
+            </div>
+            <div class="plat-mini-metrics">
+                <div class="plat-metric-item"><span>210</span><small>Easy</small></div>
+                <div class="plat-metric-item"><span>380</span><small>Medium</small></div>
+                <div class="plat-metric-item"><span>90</span><small>Hard</small></div>
+            </div>
+        </div>
+
+        <div class="plat-detail-card">
+            <div>
+                <div class="plat-detail-head">
+                    <div class="plat-brand"><span style="color:#c9820f; font-weight:700; font-family:var(--font-display);">CC</span> <strong>CodeChef</strong></div>
+                    <span class="plat-badge-pill">4★ Coder</span>
+                </div>
+                <div class="plat-big-rating">1,885 <small style="font-size:13px; color:var(--muted); font-weight:normal;">Rating</small></div>
+                <div class="plat-sub-info">Global Rank #1,420 • Max 1,910</div>
+            </div>
+            <div class="plat-mini-metrics">
+                <div class="plat-metric-item"><span>4★</span><small>Stars</small></div>
+                <div class="plat-metric-item"><span>14</span><small>Contests</small></div>
+                <div class="plat-metric-item"><span>240+</span><small>Solved</small></div>
+            </div>
+        </div>
+
+        <div class="plat-detail-card">
+            <div>
+                <div class="plat-detail-head">
+                    <div class="plat-brand"><span style="color:#e0505a; font-weight:700; font-family:var(--font-display);">CF</span> <strong>Codeforces</strong></div>
+                    <span class="plat-badge-pill" style="color:#38bdf8; border-color:rgba(56,189,248,0.3); background:rgba(56,189,248,0.1);">Specialist 🟢</span>
+                </div>
+                <div class="plat-big-rating">1,520 <small style="font-size:13px; color:var(--muted); font-weight:normal;">Rating</small></div>
+                <div class="plat-sub-info">Max Rating 1,610 • 42 Contests</div>
+            </div>
+            <div class="plat-mini-metrics">
+                <div class="plat-metric-item"><span>180</span><small>Solved</small></div>
+                <div class="plat-metric-item"><span>42</span><small>Contests</small></div>
+                <div class="plat-metric-item"><span>#3.2k</span><small>Rank</small></div>
+            </div>
+        </div>
+
+        <div class="plat-detail-card">
+            <div>
+                <div class="plat-detail-head">
+                    <div class="plat-brand"><span style="color:#c9d1d9; font-weight:700; font-family:var(--font-display);">GH</span> <strong>GitHub</strong></div>
+                    <span class="plat-badge-pill">Pro Contributor</span>
+                </div>
+                <div class="plat-big-rating">1,280 <small style="font-size:13px; color:var(--muted); font-weight:normal;">Commits</small></div>
+                <div class="plat-sub-info">34 Repositories • 142 Stars Earned</div>
+            </div>
+            <div class="plat-mini-metrics">
+                <div class="plat-metric-item"><span>34</span><small>Repos</small></div>
+                <div class="plat-metric-item"><span>142</span><small>Stars</small></div>
+                <div class="plat-metric-item"><span>98.2%</span><small>Active</small></div>
+            </div>
+        </div>
+
+        <div class="plat-detail-card">
+            <div>
+                <div class="plat-detail-head">
+                    <div class="plat-brand"><span style="color:#2f8d46; font-weight:700; font-family:var(--font-display);">GFG</span> <strong>GeeksforGeeks</strong></div>
+                    <span class="plat-badge-pill">Campus #1</span>
+                </div>
+                <div class="plat-big-rating">1,840 <small style="font-size:13px; color:var(--muted); font-weight:normal;">Score</small></div>
+                <div class="plat-sub-info">412 Solved • Institute Rank #1</div>
+            </div>
+            <div class="plat-mini-metrics">
+                <div class="plat-metric-item"><span>412</span><small>Solved</small></div>
+                <div class="plat-metric-item"><span>1840</span><small>Score</small></div>
+                <div class="plat-metric-item"><span>#1</span><small>College</small></div>
+            </div>
+        </div>
+
+        <div class="plat-detail-card">
+            <div>
+                <div class="plat-detail-head">
+                    <div class="plat-brand"><span style="color:#2ec866; font-weight:700; font-family:var(--font-display);">HR</span> <strong>HackerRank</strong></div>
+                    <span class="plat-badge-pill">6★ Master</span>
+                </div>
+                <div class="plat-big-rating">6 Gold <small style="font-size:13px; color:var(--muted); font-weight:normal;">Badges</small></div>
+                <div class="plat-sub-info">Problem Solving (6★) • Python (5★)</div>
+            </div>
+            <div class="plat-mini-metrics">
+                <div class="plat-metric-item"><span>6★</span><small>Problem</small></div>
+                <div class="plat-metric-item"><span>5★</span><small>Python</small></div>
+                <div class="plat-metric-item"><span>5★</span><small>SQL</small></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="land-section">
+    <p class="land-eyebrow center">See your growth</p>
+    <h2 class="land-h2 center">Your <span class="accent-text">All-in-One</span> Coding Portfolio</h2>
+    <p class="land-sub center">Cumulative stats, streaks, contest timelines, and topic strengths — updated as you connect more platforms.</p>
+
+    <div class="stat-preview-grid">
+        <div class="panel-alt">
+            <p class="panel-label">Total questions solved</p>
+            <p class="panel-big">1,010</p>
+        </div>
+        <div class="panel-alt" style="text-align:center;">
+            <p class="panel-label">Active Streak</p>
+            <p class="panel-big" style="color:#D8CFBC; text-shadow: 0 0 12px rgba(216,207,188,0.3);">348 🔥</p>
+            <p class="panel-sub">Days Active</p>
+        </div>
+        <div class="panel-alt heatmap-panel">
+            <p class="panel-label">Unified Streak Calendar — sample data</p>
+            <div class="heatmap-grid" id="heatmapDemo"></div>
+        </div>
+    </div>
+
+    <!-- Rating Progress History Graph & Topic Analysis -->
+    <div class="stat-preview-grid two-col" style="margin-top:18px;">
+        <div class="panel-alt">
+            <p class="panel-label">Contest Rating Progress Timeline</p>
+            <div class="chart-wrap"><canvas id="contestRatingChart"></canvas></div>
+        </div>
+        <div class="panel-alt">
+            <p class="panel-label">DSA Topic Mastery Distribution</p>
+            <div class="chart-wrap"><canvas id="topicChart"></canvas></div>
+        </div>
+    </div>
+</section>
+
+<!-- Badges & Achievements Showcase (Codolio Badges) -->
+<section class="land-section">
+    <p class="land-eyebrow center">Gamified Achievements</p>
+    <h2 class="land-h2 center">Badges & Milestones Gallery</h2>
+    <p class="land-sub center">Earn verified achievement badges as your problem-solving count and contest ratings hit milestone levels.</p>
+
+    <div class="badge-grid">
+        <div class="badge-card">
+            <div class="badge-icon-box">🛡️</div>
+            <div class="badge-info">
+                <h4>LeetCode Knight</h4>
+                <p>Contest Rating > 1850 (Top 5% Global)</p>
+            </div>
+        </div>
+        <div class="badge-card">
+            <div class="badge-icon-box">🌟</div>
+            <div class="badge-info">
+                <h4>CodeChef 4★ Coder</h4>
+                <p>Division 2 Contest Rating 1885</p>
+            </div>
+        </div>
+        <div class="badge-card">
+            <div class="badge-icon-box">🔥</div>
+            <div class="badge-info">
+                <h4>300+ Days Streak</h4>
+                <p>Continuous daily problem solving</p>
+            </div>
+        </div>
+        <div class="badge-card">
+            <div class="badge-icon-box">🐙</div>
+            <div class="badge-info">
+                <h4>GitHub Octocat Pro</h4>
+                <p>1,200+ Open source commits</p>
+            </div>
+        </div>
+        <div class="badge-card">
+            <div class="badge-icon-box">🎯</div>
+            <div class="badge-info">
+                <h4>DSA Master</h4>
+                <p>500+ Medium & Hard DSA Solved</p>
+            </div>
+        </div>
+        <div class="badge-card">
+            <div class="badge-icon-box">🥇</div>
+            <div class="badge-info">
+                <h4>Top 1% Leaderboard</h4>
+                <p>SkillStack Overall Rank #3</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Featured Projects Showcase Section (Codolio Style) -->
+<section class="land-section">
+    <p class="land-eyebrow center">Proof of Work</p>
+    <h2 class="land-h2 center">Featured Developer Projects</h2>
+    <p class="land-sub center">Showcase your best open-source repositories alongside your competitive coding stats.</p>
+
+    <div class="project-grid">
+        <div class="project-card">
+            <div>
+                <div class="project-title-row">
+                    <h3>DevFlow AI</h3>
+                    <span class="project-stars">⭐ 240</span>
+                </div>
+                <p class="project-desc">Automated AI Code Reviewer bot for GitHub Pull Requests powered by OpenAI GPT-4 API & Redis worker queues.</p>
+            </div>
+            <div class="project-tags">
+                <span class="tag-pill">Python</span>
+                <span class="tag-pill">FastAPI</span>
+                <span class="tag-pill">OpenAI</span>
+                <span class="tag-pill">Docker</span>
+            </div>
+        </div>
+
+        <div class="project-card">
+            <div>
+                <div class="project-title-row">
+                    <h3>SkillStack</h3>
+                    <span class="project-stars">⭐ 185</span>
+                </div>
+                <p class="project-desc">All-in-one competitive programming portfolio aggregator combining LeetCode, CodeChef, and GitHub metrics.</p>
+            </div>
+            <div class="project-tags">
+                <span class="tag-pill">Flask</span>
+                <span class="tag-pill">MySQL</span>
+                <span class="tag-pill">Chart.js</span>
+                <span class="tag-pill">CSS3</span>
+            </div>
+        </div>
+
+        <div class="project-card">
+            <div>
+                <div class="project-title-row">
+                    <h3>Algo3D Visualizer</h3>
+                    <span class="project-stars">⭐ 510</span>
+                </div>
+                <p class="project-desc">Interactive 3D Data Structure and Algorithm visualization tool built with Three.js and WebGL for learning DSA.</p>
+            </div>
+            <div class="project-tags">
+                <span class="tag-pill">TypeScript</span>
+                <span class="tag-pill">Three.js</span>
+                <span class="tag-pill">WebGL</span>
+                <span class="tag-pill">React</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Why Choose SkillStack Feature Grid -->
+<section class="land-section">
+    <p class="land-eyebrow center">Why Coders Choose SkillStack</p>
+    <h2 class="land-h2 center">Built for Ambitious Developers</h2>
+    <p class="land-sub center">Everything you need to showcase your coding achievements to recruiters and peers.</p>
+
+    <div class="feature-cards-grid">
+        <div class="feature-box">
+            <div class="feature-icon">⚡</div>
+            <h3>Automatic Profile Sync</h3>
+            <p>Connect your handles once. SkillStack automatically fetches your latest solved questions, ratings, and submission heatmaps daily.</p>
+        </div>
+        <div class="feature-box">
+            <div class="feature-icon">📊</div>
+            <h3>Unified Rating Index</h3>
+            <p>Our proprietary scoring formula combines your LeetCode, CodeChef, and Codeforces ratings into one unified overall score.</p>
+        </div>
+        <div class="feature-box">
+            <div class="feature-icon">🏆</div>
+            <h3>College Leaderboards</h3>
+            <p>Compete on campus and global leaderboards. Compare rankings with classmates and track relative progress over time.</p>
+        </div>
+        <div class="feature-box">
+            <div class="feature-icon">💼</div>
+            <h3>Recruiter-Ready Profile</h3>
+            <p>Share your clean 1-click profile link (`skillstack.dev/@username`) or export verified PDF coding resumes for job applications.</p>
+        </div>
+    </div>
+</section>
+
+<section class="land-section">
+    <p class="land-eyebrow center">Climb the ranks</p>
+    <h2 class="land-h2 center">Compete on the Leaderboard</h2>
+    <p class="land-sub center">Every connected profile counts toward a combined score — see how you stack up.</p>
+
+    <div class="panel-alt leaderboard-preview">
+        <div class="lb-row lb-head"><span>#</span><span>Name</span><span>Score</span></div>
+        <div class="lb-row"><span>🥇 1</span><span>Ananya Sharma</span><span class="accent-text">2,340 pts</span></div>
+        <div class="lb-row"><span>🥈 2</span><span>Rohit Verma</span><span class="accent-text">2,105 pts</span></div>
+        <div class="lb-row"><span>🥉 3</span><span>Prateek Vishwakarma</span><span class="accent-text">1,980 pts</span></div>
+        <div class="lb-row"><span>4</span><span>Kavya Patel</span><span class="accent-text">1,840 pts</span></div>
+        <div class="lb-row"><span>5</span><span>Aman Gupta</span><span class="accent-text">1,720 pts</span></div>
+    </div>
+</section>
+
+<!-- FAQ Section -->
+<section class="land-section">
+    <p class="land-eyebrow center">Got Questions?</p>
+    <h2 class="land-h2 center">Frequently Asked Questions</h2>
+
+    <div class="faq-container">
+        <div class="faq-item active">
+            <div class="faq-question">How does SkillStack combine ratings across different coding platforms?</div>
+            <div class="faq-answer">SkillStack uses a weighted percentile normalization algorithm that maps ratings from LeetCode, CodeChef, Codeforces, and GeeksforGeeks to a unified 3000-point scale based on global difficulty benchmarks.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question">How often are coding stats and submission heatmaps updated?</div>
+            <div class="faq-answer">Your stats automatically refresh every 24 hours. You can also trigger an instant manual refresh anytime from your user dashboard.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question">Can I showcase my GitHub projects alongside my DSA stats?</div>
+            <div class="faq-answer">Yes! You can link your top open-source repositories to feature project cards with live tech stack pills, star counts, and demo links on your public profile.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question">Is SkillStack free to use for students and job seekers?</div>
+            <div class="faq-answer">Yes, SkillStack is 100% free! You can connect all your platforms, generate shareable links, and participate in leaderboards without any cost.</div>
+        </div>
+    </div>
+</section>
+
+<section class="land-cta-final">
+    <h2 class="land-h2 center">Ready to build your Skill Stack?</h2>
+    <p class="land-sub center">Free to join — connect your first platform in under a minute.</p>
+    <a href="{{ url_for('signup') }}" class="btn-primary" style="padding:13px 28px; font-size:15px;">Create your free account</a>
+</section>
+
+<footer class="land-footer" style="padding:28px 24px; border-top:1px solid rgba(216,207,188,0.15);">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; max-width:1200px; margin:0 auto;">
+        <div>
+            <div class="brand" style="font-size:16px;">Skill<span>Stack</span></div>
+            <p style="margin:4px 0 0 0; font-size:12px; color:var(--muted);">Your All-in-One Competitive Programming & Full-Stack Developer Portfolio.</p>
+        </div>
+        <div style="display:flex; gap:16px; align-items:center; font-size:13px;">
+            <a href="{{ url_for('login') }}" style="color:var(--ink); text-decoration:none;">Student Login</a>
+            <a href="{{ url_for('signup') }}" style="color:#D8CFBC; text-decoration:none; font-weight:700;">Sign Up</a>
+            <a href="{{ url_for('admin_login') }}" style="color:#ffa726; text-decoration:none; font-weight:700;">👑 Educator Admin Portal ↗</a>
+        </div>
+    </div>
+</footer>
+
+{% endblock %} {% block scripts %}
+<script>
+    // Sample streak heatmap
+    const heatmap = document.getElementById('heatmapDemo');
+    for (let i = 0; i < 84; i++) {
+        const cell = document.createElement('div');
+        const r = Math.random();
+        let level = 0;
+        if (r > 0.85) level = 4;
+        else if (r > 0.7) level = 3;
+        else if (r > 0.5) level = 2;
+        else if (r > 0.3) level = 1;
+        cell.className = 'heat-cell level-' + level;
+        heatmap.appendChild(cell);
+    }
+
+    // Contest Rating Chart
+    new Chart(document.getElementById('contestRatingChart'), {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+            datasets: [
+                {
+                    label: 'LeetCode Rating',
+                    data: [1650, 1710, 1780, 1820, 1890, 1910, 1942],
+                    borderColor: '#D8CFBC',
+                    backgroundColor: 'rgba(216, 207, 188, 0.15)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 2.5
+                },
+                {
+                    label: 'CodeChef Rating',
+                    data: [1520, 1600, 1680, 1740, 1810, 1850, 1885],
+                    borderColor: '#565449',
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0.35,
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { color: '#a8a396', font: { size: 11 } }
+                }
+            },
+            scales: {
+                x: { grid: { color: 'rgba(86, 84, 73, 0.3)' }, ticks: { color: '#a8a396', font: { size: 11 } } },
+                y: { grid: { color: 'rgba(86, 84, 73, 0.3)' }, ticks: { color: '#FFFBF4', font: { size: 11 } } }
+            }
+        }
+    });
+
+    // Topic Analysis Chart
+    new Chart(document.getElementById('topicChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Arrays', 'DP', 'Strings', 'Trees', 'Graphs'],
+            datasets: [{
+                data: [301, 212, 190, 88, 65],
+                backgroundColor: '#D8CFBC',
+                borderRadius: 4,
+                barThickness: 16,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: '#1b453b' }, ticks: { color: '#8ca39b', font: { size: 11 } } },
+                y: { grid: { display: false }, ticks: { color: '#f1f3f7', font: { size: 11.5, weight: '600' } } }
+            }
+        }
+    });
+
+    // FAQ Accordion Interactivity
+    document.querySelectorAll('.faq-question').forEach(q => {
+        q.addEventListener('click', () => {
+            const item = q.parentElement;
+            item.classList.toggle('active');
+        });
+    });
+
+    // Live Search Bar Query Handler
+    const searchInput = document.getElementById('demoUsername');
+    const dropdown = document.getElementById('searchResultsDropdown');
+
+    if (searchInput && dropdown) {
+        let debounceTimer;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const q = this.value.trim();
+            if (q.length < 1) {
+                dropdown.classList.remove('active');
+                return;
+            }
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/search-profiles?q=${encodeURIComponent(q)}`);
+                    const matches = await res.json();
+                    if (matches && matches.length > 0) {
+                        dropdown.innerHTML = matches.map(m => `
+                            <a href="/login" class="search-result-item">
+                                <div>
+                                    <div class="search-res-name">${m.name} <small style="color:var(--muted); font-weight:normal;">@${m.username}</small></div>
+                                    <div class="search-res-sub">🎓 ${m.college}</div>
+                                </div>
+                                <span style="font-size:11px; background:rgba(216,207,188,0.12); color:#D8CFBC; padding:3px 8px; border-radius:8px; font-weight:600;">
+                                    ${m.solved} Solved • ${m.badge}
+                                </span>
+                            </a>
+                        `).join('');
+                        dropdown.classList.add('active');
+                    } else {
+                        dropdown.innerHTML = `<div style="padding:12px; font-size:12px; color:var(--muted); text-align:center;">No matching profiles found</div>`;
+                        dropdown.classList.add('active');
+                    }
+                } catch (e) {
+                    dropdown.classList.remove('active');
+                }
+            }, 180);
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
+    }
+</script>
+{% endblock %}

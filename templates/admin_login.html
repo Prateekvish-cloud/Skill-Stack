@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Admin Portal Login — Skill Stack{% endblock %}
+{% block content %}
+<div class="auth-screen">
+  <div class="auth-card" style="max-width:420px; text-align:center;">
+    
+    <div style="width:52px; height:52px; border-radius:14px; background:rgba(255,167,38,0.15); border:1px solid rgba(255,167,38,0.3); color:#ffa726; font-size:26px; display:flex; align-items:center; justify-content:center; margin:0 auto 14px auto;">👑</div>
+    
+    <h1 style="margin:0 0 6px 0; font-size:22px; color:var(--ink);">Educator & Admin Portal</h1>
+    <p class="auth-sub" style="margin-bottom:20px;">Secure login for institution managers & professors</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div style="padding:10px 14px; border-radius:8px; font-size:12.5px; margin-bottom:16px; text-align:left; background:{{ 'rgba(255,82,82,0.15)' if category == 'error' else 'rgba(57,211,83,0.15)' }}; border:1px solid {{ '#ff5252' if category == 'error' else '#39d353' }}; color:{{ '#ff5252' if category == 'error' else '#39d353' }};">
+            {{ msg }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form action="{{ url_for('admin_login') }}" method="POST" class="auth-form" style="text-align:left;">
+      <div class="field">
+        <label>Admin Email Address</label>
+        <input type="email" name="email" value="admin@skillstack.com" required placeholder="admin@skillstack.com">
+      </div>
+
+      <div class="field">
+        <label>Security Key / Password</label>
+        <input type="password" name="password" value="admin123" required placeholder="••••••••">
+      </div>
+
+      <button type="submit" class="btn-primary" style="padding:12px; font-size:13.5px; font-weight:700; cursor:pointer; margin-top:10px; background:linear-gradient(135deg, #ffa726 0%, #c9820f 100%); color:#1e1f19; border:none; border-radius:10px;">
+        🔑 Authenticate Admin Access ↗
+      </button>
+    </form>
+
+    <div style="margin-top:20px; padding-top:14px; border-top:1px solid rgba(86,84,73,0.3); font-size:12px; color:var(--muted);">
+      Are you a student? <a href="{{ url_for('login') }}" style="color:#ffa726; text-decoration:none; font-weight:700;">Student Login Here</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

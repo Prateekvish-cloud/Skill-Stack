@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% block title %}Skills Matrix — Skill Stack{% endblock %}
+{% block content %}
+<div class="app-shell">
+  {% include "sidebar.html" %}
+
+  <main class="dash-main">
+    <div class="section-heading" style="margin-bottom:6px;">
+      <h1 class="dash-title">Platform-Wise Real Solved Tracker</h1>
+    </div>
+    <p class="dash-sub">Real solved problem counts & live data extracted directly from your connected platform profiles.</p>
+
+    <!-- AI Practice Mentor Banner -->
+    <div style="background:linear-gradient(135deg, rgba(40,41,32,0.95) 0%, rgba(23,24,19,0.95) 100%); border:1px solid rgba(216,207,188,0.35); border-radius:14px; padding:18px 22px; margin-top:16px; margin-bottom:20px; box-shadow:0 10px 30px rgba(0,0,0,0.4);">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="font-size:32px; background:rgba(216,207,188,0.15); width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(216,207,188,0.3);">🤖</div>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <h3 style="margin:0; font-size:16px; color:var(--ink);">AI Practice Mentor</h3>
+              <span style="font-size:10px; font-weight:700; background:rgba(57,211,83,0.15); color:#39d353; padding:2px 8px; border-radius:10px;">LIVE CONNECTED PROFILES</span>
+            </div>
+            <p style="margin:4px 0 0 0; font-size:12.5px; color:var(--muted);" id="aiMentorStatusText">
+              Real profile statistics synced for your connected handles: LeetCode (27), GeeksforGeeks (81), CodeChef (36), HackerRank (26).
+            </p>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="generateAIPlan()" id="btnGenAIPlan" style="padding:9px 18px; font-size:13px; cursor:pointer; font-weight:700;">⚡ Generate 7-Day AI Plan</button>
+      </div>
+
+      <!-- 7-Day Accordion Container (Hidden by Default) -->
+      <div id="aiStudyPlanContainer" style="display:none; margin-top:18px; padding-top:16px; border-top:1px solid rgba(216,207,188,0.15);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h4 style="margin:0; font-size:14px; color:#D8CFBC;">🗓️ Your Personalized 7-Day DSA Roadmap</h4>
+          <button onclick="document.getElementById('aiStudyPlanContainer').style.display='none'" style="background:none; border:none; color:var(--muted); font-size:12px; cursor:pointer;">Collapse ▲</button>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:12px;" id="aiPlanGrid">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Bar & Platform Solver Launcher -->
+    <div style="background:rgba(30,31,25,0.85); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div style="flex:1; min-width:280px; position:relative;">
+        <input type="text" id="skillProbSearch" placeholder="🔍 Search any problem # (e.g. 75, 1, 217) or title (e.g. Sort Colors, Two Sum)..." oninput="filterSkillProblems()" style="padding:10px 16px; font-size:14px; background:rgba(18,19,14,0.9); border:1px solid rgba(216,207,188,0.35); border-radius:10px; color:var(--ink); width:100%; box-sizing:border-box;">
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:12px; color:var(--muted); font-weight:600;">Open Direct Question On:</span>
+        <button type="button" onclick="launchPlatformSearch('leetcode')" class="plat-badge-pill" style="background:rgba(255,167,38,0.2); color:#ffa726; border:1px solid rgba(255,167,38,0.4); font-size:11.5px; font-weight:700; cursor:pointer; padding:5px 12px;" title="Open Question Page on LeetCode">⚡ LC</button>
+        <button type="button" onclick="launchPlatformSearch('gfg')" class="plat-badge-pill" style="background:rgba(47,141,70,0.2); color:#2f8d46; border:1px solid rgba(47,141,70,0.4); font-size:11.5px; font-weight:700; cursor:pointer; padding:5px 12px;" title="Open Question Page on GeeksforGeeks">🟢 GFG</button>
+        <button type="button" onclick="launchPlatformSearch('hackerrank')" class="plat-badge-pill" style="background:rgba(46,200,102,0.2); color:#2ec866; border:1px solid rgba(46,200,102,0.4); font-size:11.5px; font-weight:700; cursor:pointer; padding:5px 12px;" title="Open Question Page on HackerRank">🟩 HR</button>
+        <button type="button" onclick="launchPlatformSearch('codechef')" class="plat-badge-pill" style="background:rgba(201,130,15,0.2); color:#c9820f; border:1px solid rgba(201,130,15,0.4); font-size:11.5px; font-weight:700; cursor:pointer; padding:5px 12px;" title="Open Question Page on CodeChef">⭐ CC</button>
+        <button type="button" onclick="launchPlatformSearch('codeforces')" class="plat-badge-pill" style="background:rgba(224,80,90,0.2); color:#e0505a; border:1px solid rgba(224,80,90,0.4); font-size:11.5px; font-weight:700; cursor:pointer; padding:5px 12px;" title="Open Question Page on Codeforces">🔴 CF</button>
+      </div>
+    </div>
+
+    <!-- Universal Direct Question Launcher Card -->
+    <div id="customSearchLauncher" style="display:none; background:linear-gradient(135deg, rgba(35,36,28,0.95), rgba(20,21,16,0.95)); border:1px solid rgba(216,207,188,0.4); border-radius:14px; padding:18px 22px; margin-bottom:24px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+        <div>
+          <div style="font-size:11px; font-weight:700; color:#39d353; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;">Solve & Mark Solved Platform</div>
+          <h3 style="margin:0; font-size:17px; color:#FFFBF4;" id="searchLauncherTitle">Open Question #75</h3>
+          <p style="margin:4px 0 0; font-size:12.5px; color:var(--muted);" id="searchLauncherSub">Click open to solve, then mark solved on your platform:</p>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <a id="linkLC" href="#" target="_blank" class="btn-primary" style="font-size:12px; padding:7px 12px; background:rgba(255,167,38,0.15); color:#ffa726; border:1px solid rgba(255,167,38,0.4); text-decoration:none; font-weight:700;">⚡ LeetCode ↗</a>
+            <a id="linkGFG" href="#" target="_blank" class="btn-primary" style="font-size:12px; padding:7px 12px; background:rgba(47,141,70,0.15); color:#2f8d46; border:1px solid rgba(47,141,70,0.4); text-decoration:none; font-weight:700;">🟢 GFG ↗</a>
+          </div>
+          <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            <button type="button" onclick="markCurrentSearchAsSolved('leetcode')" class="btn-primary" style="padding:7px 11px; font-size:11.5px; font-weight:700; background:rgba(255,167,38,0.25); color:#ffa726; border:1px solid rgba(255,167,38,0.5); cursor:pointer; border-radius:6px;">+ Solved on LC</button>
+            <button type="button" onclick="markCurrentSearchAsSolved('gfg')" class="btn-primary" style="padding:7px 11px; font-size:11.5px; font-weight:700; background:rgba(47,141,70,0.25); color:#2f8d46; border:1px solid rgba(47,141,70,0.5); cursor:pointer; border-radius:6px;">+ Solved on GFG</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLATFORM-WISE REAL CONNECTED SOLVED PROBLEMS GRID -->
+    {% if platforms_data | length > 0 %}
+    <div class="stat-preview-grid two-col" style="margin-top:0;" id="skillsTopicsGrid">
+      {% for plat in platforms_data %}
+      <div class="panel-alt topic-card-box" id="platformCard-{{ plat.key }}" style="display:flex; flex-direction:column; justify-content:space-between; border-color:{{ plat.border }};">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid rgba(86,84,73,0.3);">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:12px; font-weight:800; padding:4px 9px; border-radius:6px; background:{{ plat.bg }}; color:{{ plat.color }}; border:1px solid {{ plat.border }};">{{ plat.initial }}</span>
+              <div>
+                <h3 style="font-family:var(--font-display); font-size:16px; margin:0; color:var(--ink);">{{ plat.name }}</h3>
+                <span style="font-size:11px; color:var(--muted);">{{ plat.handle }}</span>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="topic-count-badge" style="font-size:12.5px; font-weight:700; color:{{ plat.color }}; background:{{ plat.bg }}; padding:3px 10px; border-radius:10px; border:1px solid {{ plat.border }};">
+                <strong class="solved-count">{{ plat.solved }}</strong> Solved
+              </span>
+            </div>
+          </div>
+
+          <!-- Solved Problems List for this Platform -->
+          <div>
+            <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:10px; letter-spacing:0.04em;">Live Solved Problems</div>
+            
+            {% if plat.problems | length > 0 %}
+            <div style="display:flex; flex-direction:column; gap:8px;" class="topic-prob-list">
+              {% for p in plat.problems %}
+              <div class="skill-prob-row" data-title="{{ p.title | lower }}" data-num="{{ p.num }}" data-diff="{{ p.diff | lower }}" style="display:flex; align-items:center; justify-content:space-between; background:rgba(35,36,28,0.6); padding:8px 12px; border-radius:8px; border:1px solid {{ plat.border }};">
+                <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+                  <span style="font-size:10px; font-weight:700; color:{{ p.color }}; background:{{ p.bg }}; padding:2px 6px; border-radius:4px;">{{ p.initial }}</span>
+                  <span style="font-size:11px; font-weight:700; color:#D8CFBC; background:rgba(216,207,188,0.1); padding:1px 6px; border-radius:4px; flex-shrink:0;">#{{ p.num }}</span>
+                  <span class="prob-title" style="font-size:13px; color:var(--ink); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.title }}</span>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                  <span style="font-size:10.5px; padding:2px 7px; border-radius:6px; background:{{ 'rgba(57,211,83,0.15)' if p.diff == 'Easy' else 'rgba(255,167,38,0.15)' }}; color:{{ '#39d353' if p.diff == 'Easy' else '#ffa726' }}; font-weight:600;">{{ p.diff }}</span>
+                  <a href="{{ p.url }}" target="_blank" style="font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:5px; background:{{ p.bg }}; color:{{ p.color }}; text-decoration:none;" title="Open on {{ plat.name }}">{{ p.initial }} ↗</a>
+                  <button type="button" onclick="removeSolvedProblem('{{ p.id }}')" style="background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer; padding:2px 6px;" title="Remove from solved list">✕</button>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div style="font-size:12px; color:var(--muted); padding:14px; text-align:center; background:rgba(25,26,20,0.5); border-radius:8px; border:1px dashed rgba(86,84,73,0.3);">
+              Synced Profile Handle: <strong style="color:var(--ink);">{{ plat.handle }}</strong> ({{ plat.solved }} Solved).<br>
+              Search a problem above to add it to your {{ plat.name }} solved list!
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <!-- EMPTY STATE WHEN NO PLATFORMS CONNECTED -->
+    <div style="background:rgba(25,26,20,0.7); border:1px dashed rgba(216,207,188,0.3); border-radius:16px; padding:40px 24px; text-align:center; margin-top:10px; margin-bottom:24px;">
+      <div style="font-size:48px; margin-bottom:12px;">🔗</div>
+      <h3 style="margin:0 0 8px; font-size:18px; color:var(--ink);">No Coding Profiles Connected Yet</h3>
+      <p style="margin:0 auto 20px; max-width:520px; font-size:13.5px; color:var(--muted); line-height:1.6;">
+        Connect your LeetCode, GeeksforGeeks, CodeChef, or HackerRank handles in Coding Profiles to automatically display your real solved problems here!
+      </p>
+      <a href="/profiles" class="btn-primary" style="padding:10px 20px; font-size:13px; font-weight:700; text-decoration:none;">🔗 Connect Coding Profiles</a>
+    </div>
+    {% endif %}
+
+    <!-- AI Focus Box -->
+    <div class="panel" style="margin-top:28px; background:linear-gradient(135deg, rgba(30,31,25,0.9), rgba(17,18,13,0.9)); border-color:rgba(216,207,188,0.35);">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+        <span style="font-size:22px;">🎯</span>
+        <h2 style="margin:0; font-size:18px;">Recommended Platform Focus</h2>
+      </div>
+      <p style="font-size:13.5px; color:var(--muted); line-height:1.6; margin:0 0 16px;">
+        Based on your connected profiles, pushing your <strong>LeetCode Contest Rating > 1800</strong> and completing <strong>GeeksforGeeks PotD</strong> will give you maximum profile strength.
+      </p>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <a href="https://leetcode.com/problemset/all/" target="_blank" class="btn-primary" style="font-size:12.5px; padding:7px 14px;">Practice LeetCode ↗</a>
+        <a href="https://practice.geeksforgeeks.org/problem-of-the-day" target="_blank" class="btn-secondary" style="font-size:12.5px; padding:7px 14px;">Practice GFG PotD ↗</a>
+      </div>
+    </div>
+
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const lcNumToSlug = {
+    "1": "two-sum", "2": "add-two-numbers", "3": "longest-substring-without-repeating-characters",
+    "4": "median-of-two-sorted-arrays", "5": "longest-palindromic-substring", "11": "container-with-most-water",
+    "15": "3sum", "17": "letter-combinations-of-a-phone-number", "19": "remove-nth-node-from-end-of-list",
+    "20": "valid-parentheses", "21": "merge-two-sorted-lists", "22": "generate-parentheses", "23": "merge-k-sorted-lists",
+    "33": "search-in-rotated-sorted-array", "39": "combination-sum", "42": "trapping-rain-water", "46": "permutations",
+    "48": "rotate-image", "49": "group-anagrams", "53": "maximum-subarray", "55": "jump-game", "56": "merge-intervals",
+    "70": "climbing-stairs", "75": "sort-colors", "76": "minimum-window-substring", "78": "subsets", "79": "word-search",
+    "84": "largest-rectangle-in-histogram", "91": "decode-ways", "98": "validate-binary-search-tree", "100": "same-tree",
+    "102": "binary-tree-level-order-traversal", "104": "maximum-depth-of-binary-tree",
+    "105": "construct-binary-tree-from-preorder-and-inorder-traversal", "121": "best-time-to-buy-and-sell-stock",
+    "124": "binary-tree-maximum-path-sum", "125": "valid-palindrome", "128": "longest-consecutive-sequence",
+    "133": "clone-graph", "139": "word-break", "141": "linked-list-cycle", "143": "reorder-list",
+    "152": "maximum-product-subarray", "153": "find-minimum-in-rotated-sorted-array", "198": "house-robber",
+    "200": "number-of-islands", "206": "reverse-linked-list", "207": "course-schedule",
+    "208": "implement-trie-prefix-tree", "211": "design-add-and-search-words-data-structure", "212": "word-search-ii",
+    "213": "house-robber-ii", "215": "kth-largest-element-in-an-array", "217": "contains-duplicate",
+    "226": "invert-binary-tree", "230": "kth-smallest-element-in-a-bst",
+    "235": "lowest-common-ancestor-of-a-binary-search-tree", "236": "lowest-common-ancestor-of-a-binary-tree",
+    "238": "product-of-array-except-self", "242": "valid-anagram", "295": "find-median-from-data-stream",
+    "300": "longest-increasing-subsequence", "322": "coin-change", "338": "counting-bits",
+    "347": "top-k-frequent-elements", "417": "pacific-atlantic-water-flow", "435": "non-overlapping-intervals",
+    "494": "target-sum", "572": "subtree-of-another-tree", "647": "palindromic-substrings",
+    "704": "binary-search", "994": "rotting-oranges"
+  };
+
+  function getLeetCodeUrl(cleanQ, rawQ) {
+    if (lcNumToSlug[cleanQ]) {
+      return `https://leetcode.com/problems/${lcNumToSlug[cleanQ]}/`;
+    }
+    const slug = rawQ.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    if (slug && isNaN(cleanQ)) {
+      return `https://leetcode.com/problems/${slug}/`;
+    }
+    return `https://leetcode.com/problemset/?search=${encodeURIComponent(rawQ)}`;
+  }
+
+  function filterSkillProblems() {
+    const rawQ = document.getElementById('skillProbSearch').value.trim();
+    const q = rawQ.toLowerCase();
+    const cleanQ = q.replace('#', '').trim();
+    const launcher = document.getElementById('customSearchLauncher');
+
+    if (rawQ) {
+      launcher.style.display = 'block';
+      const isNum = !isNaN(cleanQ) && cleanQ.length > 0;
+      const questionTitle = lcNumToSlug[cleanQ] ? lcNumToSlug[cleanQ].replace(/-/g, ' ').toUpperCase() : rawQ;
+      
+      document.getElementById('searchLauncherTitle').textContent = isNum ? `Question #${cleanQ}: ${questionTitle}` : `Question: "${rawQ}"`;
+      
+      const searchTarget = encodeURIComponent(rawQ);
+      document.getElementById('linkLC').href = getLeetCodeUrl(cleanQ, rawQ);
+      document.getElementById('linkGFG').href = `https://www.geeksforgeeks.org/explore?search=${searchTarget}`;
+    } else {
+      launcher.style.display = 'none';
+    }
+  }
+
+  function launchPlatformSearch(platform) {
+    const rawQ = document.getElementById('skillProbSearch').value.trim() || '75';
+    const cleanQ = rawQ.toLowerCase().replace('#', '').trim();
+    const target = encodeURIComponent(rawQ);
+
+    let url = '';
+    if (platform === 'leetcode') url = getLeetCodeUrl(cleanQ, rawQ);
+    else if (platform === 'gfg') url = `https://www.geeksforgeeks.org/explore?search=${target}`;
+    else if (platform === 'hackerrank') url = `https://www.hackerrank.com/challenges?q=${target}`;
+    else if (platform === 'codechef') url = `https://www.codechef.com/practice?search=${target}`;
+    else if (platform === 'codeforces') url = `https://codeforces.com/problemset?query=${target}`;
+
+    if (url) window.open(url, '_blank');
+  }
+
+  async function markCurrentSearchAsSolved(platformStr = 'leetcode') {
+    const rawQ = document.getElementById('skillProbSearch').value.trim();
+    if (!rawQ) return;
+
+    const cleanQ = rawQ.toLowerCase().replace('#', '').trim();
+    const isNum = !isNaN(cleanQ) && cleanQ.length > 0;
+    const title = isNum ? (lcNumToSlug[cleanQ] ? lcNumToSlug[cleanQ].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : `Problem #${cleanQ}`) : rawQ;
+    const problem_id = isNum ? cleanQ : rawQ.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const num = isNum ? cleanQ : '1';
+
+    try {
+      const res = await fetch('/api/toggle-problem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          problem_id: problem_id,
+          title: title,
+          num: num,
+          platform: platformStr,
+          solved: true
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.reload();
+      }
+    } catch (e) {
+      alert('Error marking problem as solved.');
+    }
+  }
+
+  async function removeSolvedProblem(problemId) {
+    if (!confirm('Remove this problem from your solved list?')) return;
+    try {
+      const res = await fetch('/api/toggle-problem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ problem_id: problemId, solved: false })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.reload();
+      }
+    } catch (e) {}
+  }
+
+  window.generateAIPlan = function() {
+    const btn = document.getElementById('btnGenAIPlan');
+    btn.textContent = '🤖 Analyzing Platform Problems...';
+    btn.disabled = true;
+
+    fetch('/api/ai-study-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.textContent = '⚡ Re-Generate AI Plan';
+      btn.disabled = false;
+      document.getElementById('aiMentorStatusText').innerHTML = data.summary;
+
+      const container = document.getElementById('aiStudyPlanContainer');
+      const grid = document.getElementById('aiPlanGrid');
+      container.style.display = 'block';
+      grid.innerHTML = '';
+
+      data.plan.forEach(item => {
+        const card = document.createElement('div');
+        card.style.padding = '12px 14px';
+        card.style.background = 'rgba(25,26,20,0.85)';
+        card.style.border = '1px solid rgba(216,207,188,0.25)';
+        card.style.borderRadius = '10px';
+
+        let probsHtml = item.problems.map(p => `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:12px; background:rgba(35,36,28,0.7); padding:6px 10px; border-radius:6px; border:1px solid rgba(86,84,73,0.25);">
+            <span style="color:var(--ink); font-weight:600;">${p.title}</span>
+            <div style="display:flex; gap:4px; align-items:center;">
+              <span style="font-size:10px; padding:2px 5px; border-radius:4px; background:${p.diff === 'Easy' ? 'rgba(57,211,83,0.15)' : 'rgba(255,167,38,0.15)'}; color:${p.diff === 'Easy' ? '#39d353' : '#ffa726'};">${p.diff}</span>
+              <a href="${p.lc}" target="_blank" style="font-size:10px; font-weight:700; color:#ffa726; text-decoration:none; background:rgba(255,167,38,0.15); padding:2px 5px; border-radius:4px;" title="Solve on LeetCode">LC ↗</a>
+              <a href="${p.gfg}" target="_blank" style="font-size:10px; font-weight:700; color:#2f8d46; text-decoration:none; background:rgba(47,141,70,0.15); padding:2px 5px; border-radius:4px;" title="Solve on GeeksforGeeks">GFG ↗</a>
+            </div>
+          </div>
+        `).join('');
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-size:10.5px; font-weight:700; color:#39d353; text-transform:uppercase;">${item.focus}</span>
+            <span style="font-size:10.5px; color:var(--muted); font-weight:600;">⏳ ${item.est_time}</span>
+          </div>
+          <div style="font-weight:700; font-size:13px; color:var(--ink); margin-bottom:6px;">${item.title}</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">${probsHtml}</div>
+        `;
+        grid.appendChild(card);
+      });
+    })
+    .catch(() => {
+      btn.textContent = '⚡ Generate 7-Day AI Plan';
+      btn.disabled = false;
+    });
+  };
+</script>
+{% endblock %}

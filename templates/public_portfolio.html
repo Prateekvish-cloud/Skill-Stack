@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ profile_user.name }} • SkillStack Developer Portfolio</title>
+  <meta name="description" content="View {{ profile_user.name }}'s unified competitive coding profile, DSA topic mastery, GitHub projects, contest ratings, and achievement badges on SkillStack.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: #0f100c;
+      color: #D8CFBC;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+    .public-nav {
+      background: rgba(22, 23, 18, 0.9);
+      border-bottom: 1px solid rgba(216, 207, 188, 0.15);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .public-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #D8CFBC;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+    }
+    .public-logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #D8CFBC, #565449);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #12130e;
+      font-size: 16px;
+    }
+    .public-hero-card {
+      background: linear-gradient(135deg, rgba(30, 32, 25, 0.95), rgba(20, 21, 16, 0.95));
+      border: 1px solid rgba(216, 207, 188, 0.2);
+      border-radius: 20px;
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+    .avatar-large {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(216, 207, 188, 0.2), rgba(86, 84, 73, 0.3));
+      border: 2px solid rgba(216, 207, 188, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 800;
+      color: #D8CFBC;
+      font-family: 'Outfit', sans-serif;
+    }
+    .toast-notice {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #39d353;
+      color: #12130e;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 13px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      display: none;
+      z-index: 1000;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Public Bar -->
+  <nav class="public-nav">
+    <a href="/" class="public-logo">
+      <div class="public-logo-icon">⚡</div>
+      <span>SkillStack</span>
+      <span style="font-size: 11px; background: rgba(216, 207, 188, 0.15); border: 1px solid rgba(216, 207, 188, 0.3); padding: 2px 8px; border-radius: 12px; font-weight: 600; color: #D8CFBC;">Public Portfolio</span>
+    </a>
+    <div style="display:flex; gap: 10px; align-items:center;">
+      <button onclick="copyPortfolioLink()" class="btn-primary" style="padding: 8px 16px; font-size: 12.5px; border-radius: 10px; cursor: pointer;">
+        📋 Share Portfolio
+      </button>
+      {% if not session.user_id %}
+      <a href="/signup" class="btn-ghost" style="padding: 8px 14px; font-size: 12.5px; text-decoration: none;">Create Your Portfolio ↗</a>
+      {% else %}
+      <a href="/dashboard" class="btn-ghost" style="padding: 8px 14px; font-size: 12.5px; text-decoration: none;">My Dashboard ↗</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <div style="max-width: 1200px; margin: 32px auto; padding: 0 20px;">
+
+    <!-- Developer Hero Header -->
+    <div class="public-hero-card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:20px;">
+        
+        <div style="display:flex; gap: 20px; align-items:flex-start;">
+          <div style="position:relative;">
+            <div class="avatar-large" style="width: 80px; height: 80px; font-size: 36px; border-color: rgba(216, 207, 188, 0.5); box-shadow: 0 0 20px rgba(216, 207, 188, 0.15);">
+              {{ profile_user.name[0] | upper }}
+            </div>
+            <span style="position:absolute; bottom:2px; right:2px; width:16px; height:16px; background:#39d353; border:3px solid #141510; border-radius:50%;" title="Online & Active"></span>
+          </div>
+          <div>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom: 4px; flex-wrap:wrap;">
+              <h1 style="font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 800; margin:0; color:#D8CFBC;">
+                {{ profile_user.name }}
+              </h1>
+              <span style="background: rgba(57, 211, 83, 0.15); color: #39d353; border: 1px solid rgba(57, 211, 83, 0.3); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;">Verified Coder ✓</span>
+            </div>
+
+            <p style="color: #D8CFBC; margin:0 0 6px; font-size: 14.5px; font-weight: 600;">
+              {{ profile_user.headline }}
+            </p>
+
+            <div style="display:flex; gap: 12px; margin-bottom: 10px; font-size: 12px; color: var(--muted); flex-wrap:wrap;">
+              <span>🏫 {{ profile_user.college }}</span>
+              <span>•</span>
+              <span>📍 {{ profile_user.location }}</span>
+            </div>
+
+            <p style="color: var(--muted); margin: 0 0 14px; font-size: 13px; max-width: 620px; line-height: 1.5; background: rgba(18, 19, 14, 0.5); border-left: 3px solid #D8CFBC; padding: 8px 12px; border-radius: 0 8px 8px 0;">
+              "{{ profile_user.bio }}"
+            </p>
+
+            <!-- Social Links & Handle Quick Action Pills -->
+            <div style="display:flex; gap: 8px; flex-wrap:wrap; align-items:center;">
+              <a href="{{ profile_user.github_url }}" target="_blank" class="tag-pill" style="font-size: 11px; text-decoration:none; color:#D8CFBC; background:rgba(216,207,188,0.1); border-color:rgba(216,207,188,0.25);">🐙 GitHub ↗</a>
+              <a href="{{ profile_user.linkedin_url }}" target="_blank" class="tag-pill" style="font-size: 11px; text-decoration:none; color:#0077b5; background:rgba(0,119,181,0.1); border-color:rgba(0,119,181,0.3);">💼 LinkedIn ↗</a>
+              <a href="{{ profile_user.gfg_url }}" target="_blank" class="tag-pill" style="font-size: 11px; text-decoration:none; color:#2f8d46; background:rgba(47,141,70,0.1); border-color:rgba(47,141,70,0.3);">🟢 GeeksforGeeks ↗</a>
+              <a href="{{ profile_user.codechef_url }}" target="_blank" class="tag-pill" style="font-size: 11px; text-decoration:none; color:#c9820f; background:rgba(201,130,15,0.1); border-color:rgba(201,130,15,0.3);">⭐ CodeChef ↗</a>
+              <a href="{{ profile_user.codeforces_url }}" target="_blank" class="tag-pill" style="font-size: 11px; text-decoration:none; color:#ffa726; background:rgba(255,167,38,0.1); border-color:rgba(255,167,38,0.3);">CF Codeforces ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Summary Stats Grid -->
+        <div style="display:flex; gap: 14px;">
+          <div style="background: rgba(18, 19, 14, 0.8); border: 1px solid rgba(216, 207, 188, 0.2); padding: 14px 20px; border-radius: 14px; text-align: center; min-width: 105px;">
+            <div style="font-size: 11px; color: var(--muted); margin-bottom: 4px;">Unified Score</div>
+            <div style="font-size: 22px; font-weight: 800; color: #D8CFBC; font-family: 'Outfit', sans-serif;">{{ stats.unified_score }}</div>
+          </div>
+          <div style="background: rgba(18, 19, 14, 0.8); border: 1px solid rgba(216, 207, 188, 0.2); padding: 14px 20px; border-radius: 14px; text-align: center; min-width: 105px;">
+            <div style="font-size: 11px; color: var(--muted); margin-bottom: 4px;">Active Streak</div>
+            <div style="font-size: 22px; font-weight: 800; color: #39d353; font-family: 'Outfit', sans-serif;">{{ stats.streak_days }} Days</div>
+          </div>
+          <div style="background: rgba(18, 19, 14, 0.8); border: 1px solid rgba(216, 207, 188, 0.2); padding: 14px 20px; border-radius: 14px; text-align: center; min-width: 105px;">
+            <div style="font-size: 11px; color: var(--muted); margin-bottom: 4px;">Global Rank</div>
+            <div style="font-size: 22px; font-weight: 800; color: #ffa726; font-family: 'Outfit', sans-serif;">{{ stats.leaderboard_rank }}</div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Connected Coding Platforms Grid -->
+    <div class="panel" style="margin-top:0;">
+      <h2 style="margin-top:0; margin-bottom:16px;">Connected Coding Platforms</h2>
+      <div class="platform-grid" style="margin-bottom:0;">
+        {% for p in platforms %}
+        <div class="platform-card {{ 'connected' if p.connected else '' }}">
+          <div class="platform-head">
+            <div class="platform-icon" style="background:{{ p.bg }}; color:{{ p.color }};">{{ p.initial }}</div>
+            <div>
+              <div class="platform-name">{{ p.name }}</div>
+              <div class="platform-status" style="font-weight:600; color:{{ '#D8CFBC' if p.connected else 'var(--muted)' }};">
+                {{ p.rating }}
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+            <span style="font-size:12px; color:var(--muted);">{{ p.solved }}</span>
+            <span style="font-size:11px; color: {{ '#39d353' if p.connected else 'var(--muted)' }}; font-weight:700;">
+              {{ '✓ Verified' if p.connected else 'Not Connected' }}
+            </span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Performance Analytics Side-by-Side Charts -->
+    <div class="dash-panels" style="margin-top:0;">
+      <section class="panel">
+        <h2>Contest Rating Progress</h2>
+        <div class="chart-wrap"><canvas id="publicRatingChart"></canvas></div>
+      </section>
+
+      <section class="panel">
+        <h2>DSA Topic Mastery</h2>
+        <div class="chart-wrap"><canvas id="publicTopicChart"></canvas></div>
+      </section>
+    </div>
+
+    <!-- Showcase Projects (Full Width) -->
+    <div class="panel" style="margin-top:0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h2 style="margin:0;">Showcase Projects</h2>
+        <span style="font-size:12px; color:var(--muted);">{{ projects|length }} Projects</span>
+      </div>
+      <div class="project-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 0;">
+        {% for proj in projects %}
+        <div class="project-card" style="padding: 16px;">
+          <div>
+            <div class="project-title-row">
+              <h3 style="font-size:15px;">{{ proj.title }}</h3>
+              <span class="project-stars">⭐ {{ proj.stars }}</span>
+            </div>
+            <p class="project-desc" style="font-size:12.5px; margin-bottom:12px;">{{ proj.description }}</p>
+          </div>
+          <div class="project-tags">
+            {% for tag in proj.tags %}
+            <span class="tag-pill">{{ tag }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <div style="grid-column: span 3; padding:28px; text-align:center; background:rgba(30,31,25,0.4); border:1px dashed rgba(216,207,188,0.2); border-radius:12px; color:var(--muted); font-size:13px;">
+          No showcase projects added yet.
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Unlocked Badges Gallery (Full Width) -->
+    <div class="panel" id="badges" style="margin-top:0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h2 style="margin:0;">Unlocked Badges & Milestones</h2>
+        <span style="font-size:12px; color:var(--muted);">{{ badges|length }} Unlocked</span>
+      </div>
+      <div class="badge-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 0;">
+        {% for b in badges %}
+        <div class="badge-card" style="padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1;">
+            <div class="badge-icon-box" style="width: 40px; height: 40px; font-size: 20px; flex-shrink: 0; border-radius: 10px; background: rgba(216, 207, 188, 0.12); display: flex; align-items: center; justify-content: center;">
+              {{ b.icon if b.icon else '🏆' }}
+            </div>
+            <div class="badge-info" style="min-width: 0; flex: 1;">
+              <h4 style="font-size: 13.5px; font-weight: 700; margin: 0 0 2px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ b.name }}</h4>
+              <p style="font-size: 11.5px; color: var(--muted); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ b.desc }}</p>
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div style="grid-column: span 3; padding:28px; text-align:center; background:rgba(30,31,25,0.4); border:1px dashed rgba(216,207,188,0.2); border-radius:12px; color:var(--muted); font-size:13px;">
+          No badges earned yet. Connect platforms and start solving to unlock achievement badges.
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+
+
+    <!-- Footer Banner -->
+    <div style="text-align: center; padding: 40px 0; color: var(--muted); font-size: 13px; border-top: 1px solid rgba(216, 207, 188, 0.1); margin-top: 40px;">
+      Powered by <strong style="color: #D8CFBC;">SkillStack</strong> • Unified Competitive Coding Portfolio Aggregator
+    </div>
+
+  </div>
+
+  <!-- Toast Notification for Share Link -->
+  <div class="toast-notice" id="toastNotice">
+    Portfolio link copied to clipboard!
+  </div>
+
+  <!-- Share Modal -->
+  <div class="modal-backdrop" id="shareModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#1a1b15; border:1px solid rgba(216,207,188,0.3); border-radius:18px; padding:24px; max-width:420px; width:90%; position:relative; color:#D8CFBC;">
+      <button onclick="closeShareModal()" style="position:absolute; top:16px; right:16px; background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer;">✕</button>
+      <h3 style="margin:0 0 6px; font-family:'Outfit',sans-serif; font-size:18px;" id="modalBadgeTitle">Share Milestone</h3>
+      <p style="font-size:12px; color:var(--muted); margin:0 0 16px;" id="modalBadgeSub">Verified SkillStack Milestone</p>
+      <div style="background:rgba(30,31,25,0.8); border:1px solid rgba(86,84,73,0.4); border-radius:14px; padding:20px; text-align:center; margin-bottom:18px;">
+        <div style="font-size:42px; margin-bottom:8px;" id="modalBadgeIcon">🏆</div>
+        <div style="font-weight:700; font-size:16px;" id="modalBadgeName">Badge Name</div>
+        <div style="font-size:12px; color:var(--muted); margin-top:4px;">SkillStack Verified Achievement</div>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button onclick="copyPortfolioLink()" class="btn-primary" style="flex:1; padding:10px; font-size:12px;">Copy Link</button>
+        <button onclick="closeShareModal()" class="btn-ghost" style="flex:1; padding:10px; font-size:12px;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function copyPortfolioLink() {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        const toast = document.getElementById('toastNotice');
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 2500);
+      });
+    }
+
+    function openShareModal(title, sub, icon) {
+      document.getElementById('modalBadgeTitle').textContent = 'Share ' + title;
+      document.getElementById('modalBadgeSub').textContent = sub;
+      document.getElementById('modalBadgeIcon').textContent = icon;
+      document.getElementById('modalBadgeName').textContent = title;
+      document.getElementById('shareModal').style.display = 'flex';
+    }
+
+    function closeShareModal() {
+      document.getElementById('shareModal').style.display = 'none';
+    }
+
+    const hasSolvedData = {{ 'true' if total_solved > 0 else 'false' }};
+    const hasConnected = {{ 'true' if connected_platforms else 'false' }};
+    const chartDs = {{ (chart_datasets or {}) | tojson }};
+    const topicCounts = {{ (topic_counts or {}) | tojson }};
+
+    document.addEventListener("DOMContentLoaded", function() {
+      if (hasConnected && hasSolvedData && chartDs && chartDs.labels) {
+        const ctxRating = document.getElementById("publicRatingChart");
+        if (ctxRating) {
+          new Chart(ctxRating, {
+            type: "line",
+            data: {
+              labels: chartDs.labels,
+              datasets: [
+                {
+                  label: "GFG Solved",
+                  data: chartDs.gfg,
+                  borderColor: "#2f8d46",
+                  backgroundColor: "rgba(47, 141, 70, 0.15)",
+                  fill: true,
+                  borderWidth: 2.5,
+                  tension: 0.35
+                },
+                {
+                  label: "CodeChef Solved",
+                  data: chartDs.cc,
+                  borderColor: "#c9820f",
+                  backgroundColor: "rgba(201, 130, 15, 0.15)",
+                  fill: true,
+                  borderWidth: 2.5,
+                  tension: 0.35
+                },
+                {
+                  label: "LeetCode Solved",
+                  data: chartDs.lc,
+                  borderColor: "#ffa726",
+                  backgroundColor: "rgba(255, 167, 38, 0.15)",
+                  fill: true,
+                  borderWidth: 2.5,
+                  tension: 0.35
+                },
+                {
+                  label: "HackerRank Solved",
+                  data: chartDs.hr,
+                  borderColor: "#2ec866",
+                  backgroundColor: "rgba(46, 200, 102, 0.15)",
+                  fill: true,
+                  borderWidth: 2.5,
+                  tension: 0.35
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { labels: { color: "#D8CFBC", font: { size: 11 } } }
+              },
+              scales: {
+                x: { ticks: { color: "#8C8A7B" }, grid: { color: "rgba(216, 207, 188, 0.05)" } },
+                y: { beginAtZero: true, ticks: { color: "#8C8A7B" }, grid: { color: "rgba(216, 207, 188, 0.08)" } }
+              }
+            }
+          });
+        }
+      }
+
+      if (hasSolvedData) {
+        const ctxTopic = document.getElementById("publicTopicChart");
+        if (ctxTopic) {
+          new Chart(ctxTopic, {
+            type: "bar",
+            data: {
+              labels: ["Arrays", "Strings", "Graphs", "DP", "Trees"],
+              datasets: [{
+                label: "Problems Solved",
+                data: [
+                  topicCounts.Arrays || 0,
+                  topicCounts.Strings || 0,
+                  topicCounts.Graphs || 0,
+                  topicCounts.DP || 0,
+                  topicCounts.Trees || 0
+                ],
+                backgroundColor: "rgba(216, 207, 188, 0.85)",
+                borderRadius: 6
+              }]
+            },
+            options: {
+              indexAxis: "y",
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { beginAtZero: true, ticks: { color: "#8C8A7B" }, grid: { color: "rgba(216, 207, 188, 0.08)" } },
+                y: { ticks: { color: "#D8CFBC" }, grid: { display: false } }
+              }
+            }
+          });
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+{% block title %}Projects — Skill Stack{% endblock %}
+{% block content %}
+<div class="app-shell">
+  {% include "sidebar.html" %}
+
+  <main class="dash-main">
+    <div class="section-heading" style="margin-bottom:6px;">
+      <h1 class="dash-title">Showcase Projects</h1>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button class="btn-secondary" style="padding:9px 16px; font-size:13px; display:flex; align-items:center; gap:7px;" onclick="openGithubImportModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+          Import from GitHub
+        </button>
+        <button class="btn-primary" style="padding:9px 18px; font-size:13.5px;" onclick="openAddProjectModal()">+ Add Manually</button>
+      </div>
+    </div>
+    <p class="dash-sub">Highlight your open-source repositories and web apps to share with recruiters.</p>
+
+    <!-- Projects Grid -->
+    <div class="platform-detail-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top:20px;">
+      {% for proj in projects %}
+      <div class="plat-detail-card" style="display:flex; flex-direction:column; justify-content:space-between;">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+            <h3 style="font-family:var(--font-display); font-size:17px; margin:0;">{{ proj.title }}</h3>
+            <span style="font-size:13px; color:#ffcc00; font-weight:600;">⭐ {{ proj.stars }}</span>
+          </div>
+          <p style="font-size:13px; color:var(--muted); line-height:1.5; margin-bottom:14px;">{{ proj.description }}</p>
+        </div>
+
+        <div>
+          <div class="project-tags" style="margin-bottom:14px;">
+            {% for tag in proj.tags %}
+            <span class="tag-pill">{{ tag }}</span>
+            {% endfor %}
+          </div>
+          <div style="display:flex; gap:8px;">
+            {% if proj.repo_url and proj.repo_url != 'https://github.com' %}
+            <a href="{{ proj.repo_url }}" target="_blank" class="btn-secondary" style="flex:1; text-align:center; font-size:12px; padding:6px 0;">GitHub ↗</a>
+            {% endif %}
+            {% if proj.demo_url %}
+            <a href="{{ proj.demo_url }}" target="_blank" class="btn-primary" style="flex:1; text-align:center; font-size:12px; padding:6px 0;">Live Demo ⚡</a>
+            {% endif %}
+            <button class="btn-ghost" style="color:#e0505a; padding:6px 10px; font-size:12px;" onclick="deleteProject({{ proj.id }})" title="Delete Project">&times;</button>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div style="grid-column: span 3; padding:40px; text-align:center; background:rgba(30,31,25,0.4); border:1px dashed rgba(216,207,188,0.25); border-radius:12px; color:var(--muted); font-size:13.5px;">
+        <div style="font-size:36px; margin-bottom:12px;">🐙</div>
+        <div style="font-weight:600; color:var(--ink); margin-bottom:6px;">No projects added yet</div>
+        <div>Click <strong>Import from GitHub</strong> to fetch your repositories, or <strong>+ Add Manually</strong>.</div>
+      </div>
+      {% endfor %}
+    </div>
+
+  </main>
+</div>
+
+<!-- GitHub Import Modal -->
+<div class="modal-backdrop" id="githubImportModal">
+  <div class="modal-box" style="max-width:680px; max-height:85vh; display:flex; flex-direction:column;">
+    <div class="modal-header" style="flex-shrink:0;">
+      <div class="modal-title-wrap">
+        <div class="modal-plat-icon" style="background:rgba(201,209,217,0.15); color:#c9d1d9;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+        </div>
+        <div>
+          <h3 style="margin:0; font-size:16px; color:var(--ink);">Import Repositories from GitHub</h3>
+          <p id="ghImportSub" style="margin:0; font-size:12px; color:var(--muted);">Select public repositories to showcase in your portfolio</p>
+        </div>
+      </div>
+      <button class="modal-close-btn" onclick="closeGithubImportModal()">&times;</button>
+    </div>
+
+    <!-- GitHub Username Input Bar -->
+    <div style="padding:12px 20px; background:rgba(30,31,25,0.6); border-bottom:1px solid var(--border); flex-shrink:0; display:flex; gap:10px; align-items:center;">
+      <div style="font-size:13px; color:var(--muted); font-weight:600; flex-shrink:0;">github.com/</div>
+      <input type="text" id="ghHandleInput" class="modal-input" placeholder="enter GitHub username..." style="margin:0; flex:1; padding:7px 12px; font-size:13px;" onkeypress="if(event.key==='Enter') fetchGhRepos()">
+      <button type="button" class="btn-primary" onclick="fetchGhRepos()" style="padding:7px 14px; font-size:12.5px; flex-shrink:0;">Fetch Repos ⚡</button>
+    </div>
+
+    <!-- Search & Select All Bar -->
+    <div id="ghRepoControls" style="display:none; padding:10px 20px; border-bottom:1px solid var(--border); flex-shrink:0; gap:10px; align-items:center; justify-content:space-between;">
+      <input type="text" id="ghRepoSearch" class="modal-input" placeholder="🔍 Filter fetched repos..." oninput="filterGhRepos()" style="margin:0; flex:1; padding:6px 12px; font-size:12.5px;">
+      <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); cursor:pointer; flex-shrink:0; white-space:nowrap;">
+        <input type="checkbox" id="ghSelectAll" onchange="toggleSelectAll(this.checked)" style="width:15px; height:15px; accent-color:#D8CFBC;"> Select All
+      </label>
+    </div>
+
+    <!-- Repo List Area -->
+    <div id="ghRepoList" style="overflow-y:auto; flex:1; padding:12px 20px; min-height:220px;">
+      <div id="ghLoadingState" style="padding:40px; text-align:center; color:var(--muted);">
+        <div style="font-size:28px; margin-bottom:12px;">🐙</div>
+        <div style="font-size:13px;">Enter a GitHub username above or click <strong>Fetch Repos</strong>.</div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="flex-shrink:0; justify-content:space-between; align-items:center;">
+      <span id="ghSelectedCount" style="font-size:12.5px; color:var(--muted);">0 repos selected</span>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn-ghost" onclick="closeGithubImportModal()" style="padding:8px 16px; font-size:13px;">Cancel</button>
+        <button type="button" class="btn-primary" id="ghImportBtn" onclick="importSelectedRepos()" style="padding:8px 20px; font-size:13px;" disabled>
+          <span id="ghImportBtnText">Import Selected ⚡</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Project Modal (Manual) -->
+<div class="modal-backdrop" id="addProjectModal">
+  <div class="modal-box" style="max-width:500px;">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-plat-icon" style="background:rgba(216,207,188,0.2); color:#D8CFBC;">🚀</div>
+        <div>
+          <h3 style="margin:0; font-size:16px; color:var(--ink);">Add New Project</h3>
+          <p style="margin:0; font-size:12px; color:var(--muted);">Showcase your work on your SkillStack portfolio</p>
+        </div>
+      </div>
+      <button class="modal-close-btn" onclick="closeAddProjectModal()">&times;</button>
+    </div>
+
+    <form id="addProjectForm" onsubmit="handleAddProjectSubmit(event)">
+      <div class="modal-body">
+        <div class="modal-input-group">
+          <label>Project Title</label>
+          <input type="text" class="modal-input" id="projTitleInput" placeholder="e.g. DevFlow AI" required>
+        </div>
+
+        <div class="modal-input-group">
+          <label>Short Description</label>
+          <textarea class="modal-input" id="projDescInput" rows="3" placeholder="What problem does your project solve?" required style="font-family:var(--font-body); resize:vertical;"></textarea>
+        </div>
+
+        <div class="modal-input-group">
+          <label>Tech Stack Tags (Comma-separated)</label>
+          <input type="text" class="modal-input" id="projTagsInput" placeholder="e.g. Python, FastAPI, Docker, React" required>
+        </div>
+
+        <div class="modal-input-group">
+          <label>GitHub Repository URL</label>
+          <input type="url" class="modal-input" id="projRepoInput" placeholder="https://github.com/yourname/my-project">
+        </div>
+
+        <div class="modal-input-group">
+          <label>Live Demo URL (Optional)</label>
+          <input type="url" class="modal-input" id="projDemoInput" placeholder="https://myproject.dev">
+        </div>
+
+        <div id="projStatusMsg" style="font-size:12px; display:none; padding:8px 12px; border-radius:8px; margin-top:10px;"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeAddProjectModal()" style="padding:8px 16px; font-size:13px;">Cancel</button>
+        <button type="submit" class="btn-primary" id="projSubmitBtn" style="padding:8px 20px; font-size:13px;">
+          <span id="projBtnText">+ Add to Portfolio ⚡</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ─── Manual Add Project ───────────────────────────────────────────
+  function openAddProjectModal() {
+    document.getElementById('projStatusMsg').style.display = 'none';
+    document.getElementById('addProjectModal').classList.add('active');
+  }
+  function closeAddProjectModal() {
+    document.getElementById('addProjectModal').classList.remove('active');
+  }
+  async function handleAddProjectSubmit(e) {
+    e.preventDefault();
+    const title = document.getElementById('projTitleInput').value.trim();
+    const description = document.getElementById('projDescInput').value.trim();
+    const tags = document.getElementById('projTagsInput').value.trim();
+    const repo_url = document.getElementById('projRepoInput').value.trim();
+    const demo_url = document.getElementById('projDemoInput').value.trim();
+    const statusMsg = document.getElementById('projStatusMsg');
+    const submitBtn = document.getElementById('projSubmitBtn');
+    const btnText = document.getElementById('projBtnText');
+    if (!title || !description) return;
+    submitBtn.disabled = true;
+    btnText.innerHTML = '<span class="spinner-sm"></span> Saving...';
+    statusMsg.style.display = 'none';
+    try {
+      const res = await fetch('/api/add-project', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description, tags, repo_url, demo_url })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showStatus(statusMsg, data.message, 'success');
+        setTimeout(() => { closeAddProjectModal(); location.reload(); }, 1200);
+      } else { throw new Error(data.error || 'Failed to add project.'); }
+    } catch (err) { showStatus(statusMsg, err.message, 'error'); }
+    finally { submitBtn.disabled = false; btnText.textContent = '+ Add to Portfolio ⚡'; }
+  }
+
+  // ─── GitHub Import Modal ──────────────────────────────────────────
+  let allFetchedRepos = [];
+
+  function openGithubImportModal() {
+    document.getElementById('githubImportModal').classList.add('active');
+    document.getElementById('ghRepoControls').style.display = 'none';
+    document.getElementById('ghImportBtn').disabled = true;
+    document.getElementById('ghSelectedCount').textContent = '0 repos selected';
+
+    // Auto trigger fetch (will pick handle from input or default connected account)
+    fetchGhRepos();
+  }
+
+  function closeGithubImportModal() {
+    document.getElementById('githubImportModal').classList.remove('active');
+  }
+
+  async function fetchGhRepos() {
+    const handleInput = document.getElementById('ghHandleInput');
+    const handle = handleInput ? handleInput.value.trim() : '';
+
+    const list = document.getElementById('ghRepoList');
+    document.getElementById('ghRepoControls').style.display = 'none';
+    document.getElementById('ghImportBtn').disabled = true;
+    document.getElementById('ghSelectedCount').textContent = '0 repos selected';
+    document.getElementById('ghLoadingState').style.display = 'block';
+    document.getElementById('ghLoadingState').innerHTML = '<div style="font-size:28px;margin-bottom:12px;">🐙</div><div style="font-size:13px;">Connecting to GitHub API...</div>';
+
+    try {
+      let endpoint = '/api/github-repos';
+      if (handle) {
+        endpoint += '?username=' + encodeURIComponent(handle);
+      }
+      const res = await fetch(endpoint);
+      const data = await res.json();
+
+      if (!data.success) {
+        document.getElementById('ghLoadingState').style.display = 'block';
+        document.getElementById('ghLoadingState').innerHTML = `
+          <div style="font-size:28px;margin-bottom:12px;">⚠️</div>
+          <div style="font-size:13px;color:#e0505a;font-weight:600;margin-bottom:8px;">${escHtml(data.error)}</div>
+          <div style="font-size:12px;color:var(--muted);">Type your GitHub username in the input box above and click <strong>Fetch Repos ⚡</strong></div>`;
+        return;
+      }
+
+      allFetchedRepos = data.repos;
+      if (handleInput && data.github_username) {
+        handleInput.value = data.github_username;
+      }
+      document.getElementById('ghImportSub').textContent = `@${data.github_username} • ${allFetchedRepos.length} public repos found`;
+      document.getElementById('ghLoadingState').style.display = 'none';
+      document.getElementById('ghRepoControls').style.display = 'flex';
+      renderRepoList(allFetchedRepos);
+    } catch (err) {
+      document.getElementById('ghLoadingState').style.display = 'block';
+      document.getElementById('ghLoadingState').innerHTML = `<div style="color:#e0505a;font-size:13px;">Error: ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  function renderRepoList(repos) {
+    const list = document.getElementById('ghRepoList');
+    if (!repos.length) {
+      list.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">No public repositories found for this account.</div>';
+      return;
+    }
+    list.innerHTML = repos.map((r, i) => `
+      <label class="gh-repo-row" for="ghRepo_${i}" style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid rgba(86,84,73,0.2);cursor:pointer;transition:background 0.1s;" onmouseover="this.style.background='rgba(216,207,188,0.04)'" onmouseout="this.style.background=''">
+        <input type="checkbox" id="ghRepo_${i}" data-idx="${i}" class="gh-repo-check" onchange="updateSelectedCount()" style="width:16px;height:16px;accent-color:#D8CFBC;margin-top:2px;flex-shrink:0;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap;">
+            <span style="font-weight:700;font-size:14px;color:var(--ink);">${escHtml(r.name)}</span>
+            ${r.language ? `<span style="font-size:10.5px;padding:2px 8px;border-radius:8px;background:rgba(216,207,188,0.1);color:#D8CFBC;border:1px solid rgba(216,207,188,0.2);">${escHtml(r.language)}</span>` : ''}
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">${escHtml(r.description || 'No description provided.')}</div>
+          <div style="display:flex;gap:14px;font-size:11.5px;color:var(--muted);">
+            <span>⭐ ${r.stars}</span>
+            <span>🍴 ${r.forks}</span>
+            ${r.topics.slice(0,3).map(t => `<span style="background:rgba(216,207,188,0.08);padding:1px 6px;border-radius:4px;">${escHtml(t)}</span>`).join('')}
+          </div>
+        </div>
+        <a href="${escHtml(r.repo_url)}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:#D8CFBC;text-decoration:none;flex-shrink:0;padding:4px 8px;border:1px solid rgba(216,207,188,0.25);border-radius:6px;white-space:nowrap;">View ↗</a>
+      </label>
+    `).join('');
+    updateSelectedCount();
+  }
+
+  function filterGhRepos() {
+    const q = document.getElementById('ghRepoSearch').value.toLowerCase();
+    const filtered = q ? allFetchedRepos.filter(r =>
+      r.name.toLowerCase().includes(q) ||
+      (r.description || '').toLowerCase().includes(q) ||
+      (r.language || '').toLowerCase().includes(q) ||
+      r.topics.some(t => t.toLowerCase().includes(q))
+    ) : allFetchedRepos;
+    renderRepoList(filtered);
+  }
+
+  function toggleSelectAll(checked) {
+    document.querySelectorAll('.gh-repo-check').forEach(cb => cb.checked = checked);
+    updateSelectedCount();
+  }
+
+  function updateSelectedCount() {
+    const count = document.querySelectorAll('.gh-repo-check:checked').length;
+    document.getElementById('ghSelectedCount').textContent = `${count} repo${count !== 1 ? 's' : ''} selected`;
+    document.getElementById('ghImportBtn').disabled = count === 0;
+  }
+
+  async function importSelectedRepos() {
+    const checkedBoxes = document.querySelectorAll('.gh-repo-check:checked');
+    const selected = Array.from(checkedBoxes).map(cb => allFetchedRepos[parseInt(cb.dataset.idx)]).filter(Boolean);
+    if (!selected.length) return;
+
+    const btn = document.getElementById('ghImportBtn');
+    const btnText = document.getElementById('ghImportBtnText');
+    btn.disabled = true;
+    btnText.innerHTML = '<span class="spinner-sm"></span> Importing...';
+
+    try {
+      const res = await fetch('/api/import-github-repos', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repos: selected })
+      });
+      const data = await res.json();
+      if (data.success) {
+        closeGithubImportModal();
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#39d353;color:#12130e;padding:12px 20px;border-radius:10px;font-weight:700;font-size:13px;z-index:9999;box-shadow:0 10px 25px rgba(0,0,0,0.4);';
+        toast.textContent = '✅ ' + data.message;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.remove(); location.reload(); }, 1800);
+      } else { throw new Error(data.error || 'Import failed.'); }
+    } catch (err) {
+      alert('Import error: ' + err.message);
+      btn.disabled = false;
+      btnText.textContent = 'Import Selected ⚡';
+    }
+  }
+
+  // ─── Delete Project ───────────────────────────────────────────────
+  async function deleteProject(id) {
+    if (!confirm('Remove this project from your portfolio?')) return;
+    try {
+      const res = await fetch(`/api/delete-project/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) location.reload();
+      else alert(data.error || 'Could not delete project');
+    } catch (err) { alert('Error: ' + err.message); }
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────────────
+  function showStatus(el, msg, type) {
+    el.style.display = 'block';
+    el.style.background = type === 'success' ? 'rgba(57,211,83,0.15)' : 'rgba(224,80,90,0.15)';
+    el.style.color = type === 'success' ? '#39d353' : '#e0505a';
+    el.style.border = `1px solid ${type === 'success' ? 'rgba(57,211,83,0.3)' : 'rgba(224,80,90,0.3)'}`;
+    el.textContent = msg;
+  }
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+{% endblock %}
