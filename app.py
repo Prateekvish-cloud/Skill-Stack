@@ -12,6 +12,13 @@ import mysql.connector
 from mysql.connector import Error
 from dotenv import load_dotenv
 
+try:
+    import psycopg2
+    import psycopg2.extras
+    PSYCOPG2_OK = True
+except ImportError:
+    PSYCOPG2_OK = False
+
 load_dotenv()
 
 CONTESTS_CACHE = {"timestamp": 0, "data": []}
@@ -25,27 +32,47 @@ def ping_health():
     """Health check & uptime monitor endpoint to keep Render warm 24/7."""
     return jsonify({"status": "ok", "app": "SkillStack", "timestamp": datetime.now().isoformat()}), 200
 
-DB_MODE = "mysql"
+DB_MODE = "sqlite"
 
 def get_db_connection():
-    """Open a fresh DB connection (MySQL if available, otherwise SQLite fallback)."""
+    """Open a fresh DB connection.
+    Priority: DATABASE_URL (PostgreSQL) > MYSQL_HOST > SQLite fallback.
+    """
     global DB_MODE
-    try:
-        conn = mysql.connector.connect(
-            host=os.getenv("MYSQL_HOST", "localhost"),
-            user=os.getenv("MYSQL_USER", "root"),
-            password=os.getenv("MYSQL_PASSWORD", ""),
-            database=os.getenv("MYSQL_DB", "skill_stack"),
-            connect_timeout=2
-        )
-        DB_MODE = "mysql"
-        return conn, False
-    except Exception:
-        DB_MODE = "sqlite"
-        db_path = os.path.join(os.path.dirname(__file__), "skill_stack.db")
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        return conn, True
+
+    # 1. Try PostgreSQL via DATABASE_URL (Render, Supabase, Neon, Railway)
+    db_url = os.getenv("DATABASE_URL", "")
+    if db_url and PSYCOPG2_OK:
+        try:
+            url = db_url.replace("postgres://", "postgresql://", 1)
+            conn = psycopg2.connect(url, connect_timeout=5)
+            DB_MODE = "postgres"
+            return conn, False
+        except Exception as pg_err:
+            print(f"PostgreSQL note: {pg_err}")
+
+    # 2. Try MySQL via explicit env vars
+    mysql_host = os.getenv("MYSQL_HOST", "")
+    if mysql_host and mysql_host not in ("localhost", "127.0.0.1", ""):
+        try:
+            conn = mysql.connector.connect(
+                host=mysql_host,
+                user=os.getenv("MYSQL_USER", "root"),
+                password=os.getenv("MYSQL_PASSWORD", ""),
+                database=os.getenv("MYSQL_DB", "skill_stack"),
+                connect_timeout=3
+            )
+            DB_MODE = "mysql"
+            return conn, False
+        except Exception as my_err:
+            print(f"MySQL note: {my_err}")
+
+    # 3. SQLite fallback (not persistent on Render free tier)
+    DB_MODE = "sqlite"
+    db_path = os.path.join(os.path.dirname(__file__), "skill_stack.db")
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    return conn, True
 
 
 BACKUP_FILE = os.path.join(os.path.dirname(__file__), "user_credentials_backup.json")
@@ -422,11 +449,17 @@ DEFAULT_PLATFORMS = [
 
 
 def db_query(sql, params=(), fetchone=False, fetchall=False, commit=False):
-    """Unified DB executor supporting both MySQL and SQLite seamlessly."""
+    """Unified DB executor supporting PostgreSQL, MySQL, and SQLite."""
     conn = None
     try:
         conn, is_sqlite = get_db_connection()
-        cursor = conn.cursor() if is_sqlite else conn.cursor(dictionary=True)
+        is_pg = (DB_MODE == "postgres")
+        if is_sqlite:
+            cursor = conn.cursor()
+        elif is_pg and PSYCOPG2_OK:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            cursor = conn.cursor(dictionary=True)
         
         sql_conv = sql
         if is_sqlite:
@@ -446,23 +479,45 @@ def db_query(sql, params=(), fetchone=False, fetchall=False, commit=False):
                     "ON DUPLICATE KEY UPDATE title=VALUES(title), num=VALUES(num), topic=VALUES(topic), diff=VALUES(diff)",
                     "ON CONFLICT(user_id, problem_id) DO UPDATE SET title=excluded.title, num=excluded.num, topic=excluded.topic, diff=excluded.diff"
                 )
+        elif is_pg:
+            # PostgreSQL: convert MySQL-specific ON DUPLICATE KEY UPDATE to ON CONFLICT DO UPDATE
+            if "ON DUPLICATE KEY UPDATE" in sql_conv:
+                sql_conv = sql_conv.replace(
+                    "ON DUPLICATE KEY UPDATE\n                username = VALUES(username),\n                problems_solved = VALUES(problems_solved),\n                rating = VALUES(rating),\n                solved_label = VALUES(solved_label),\n                connected = TRUE,\n                last_synced = VALUES(last_synced)",
+                    "ON CONFLICT(user_id, platform) DO UPDATE SET username=EXCLUDED.username, problems_solved=EXCLUDED.problems_solved, rating=EXCLUDED.rating, solved_label=EXCLUDED.solved_label, connected=TRUE, last_synced=EXCLUDED.last_synced"
+                ).replace(
+                    "ON DUPLICATE KEY UPDATE username = VALUES(username), problems_solved = VALUES(problems_solved), rating = VALUES(rating), solved_label = VALUES(solved_label), connected = TRUE, last_synced = VALUES(last_synced)",
+                    "ON CONFLICT(user_id, platform) DO UPDATE SET username=EXCLUDED.username, problems_solved=EXCLUDED.problems_solved, rating=EXCLUDED.rating, solved_label=EXCLUDED.solved_label, connected=TRUE, last_synced=EXCLUDED.last_synced"
+                ).replace(
+                    "ON DUPLICATE KEY UPDATE problem_id=VALUES(problem_id)",
+                    "ON CONFLICT(user_id, problem_id) DO NOTHING"
+                ).replace(
+                    "ON DUPLICATE KEY UPDATE title=VALUES(title), num=VALUES(num), topic=VALUES(topic), diff=VALUES(diff)",
+                    "ON CONFLICT(user_id, problem_id) DO UPDATE SET title=EXCLUDED.title, num=EXCLUDED.num, topic=EXCLUDED.topic, diff=EXCLUDED.diff"
+                )
         
         cursor.execute(sql_conv, params)
         
         if commit:
             conn.commit()
+            if is_pg:
+                try:
+                    row = cursor.fetchone()
+                    return dict(row).get("id", True) if row else True
+                except Exception:
+                    return True
             last_id = getattr(cursor, 'lastrowid', None)
             return last_id if last_id else True
-            
+
         if fetchone:
             row = cursor.fetchone()
             if row:
-                return dict(row) if is_sqlite else row
+                return dict(row) if (is_sqlite or is_pg) else row
             return None
-            
+
         if fetchall:
             rows = cursor.fetchall()
-            if is_sqlite:
+            if is_sqlite or is_pg:
                 return [dict(r) for r in rows]
             return rows
             
