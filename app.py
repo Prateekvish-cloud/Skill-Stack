@@ -2,6 +2,7 @@ import os
 import re
 import json
 import sqlite3
+import threading
 import urllib.request
 from datetime import datetime, timedelta
 
@@ -12,6 +13,8 @@ from mysql.connector import Error
 from dotenv import load_dotenv
 
 load_dotenv()
+
+CONTESTS_CACHE = {"timestamp": 0, "data": []}
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
@@ -936,9 +939,14 @@ def logout():
 
 
 def get_live_upcoming_contests():
-    """Fetch 100% real live upcoming contests from LeetCode GraphQL, Codeforces API, and CodeChef API."""
-    upcoming = []
+    """Fetch 100% real live upcoming contests from LeetCode GraphQL, Codeforces API, and CodeChef API with 15-min caching."""
+    global CONTESTS_CACHE
     now_ts = int(datetime.utcnow().timestamp())
+
+    if CONTESTS_CACHE.get("data") and (now_ts - CONTESTS_CACHE.get("timestamp", 0)) < 900:
+        return CONTESTS_CACHE["data"]
+
+    upcoming = []
 
     # 1. LeetCode Live GraphQL API
     try:
@@ -1042,6 +1050,11 @@ def get_live_upcoming_contests():
                 "countdown": "2d 17h 40m"
             }
         ]
+
+    if upcoming:
+        CONTESTS_CACHE = {"timestamp": now_ts, "data": upcoming}
+    elif CONTESTS_CACHE.get("data"):
+        return CONTESTS_CACHE["data"]
 
     return upcoming
 
@@ -1287,10 +1300,10 @@ def ensure_user_solved_problems_synced(user_id):
     
     if len(db_rows) < total_platform_solved:
         try:
-            sync_real_user_solved_from_apis(user_id)
-            db_rows = db_query("SELECT id, platform, title, topic FROM user_solved_problems WHERE user_id = %s", (user_id,), fetchall=True) or []
+            t = threading.Thread(target=sync_real_user_solved_from_apis, args=(user_id,), daemon=True)
+            t.start()
         except Exception as e:
-            print(f"Notice during live API sync for user {user_id}: {e}")
+            print(f"Notice launching background API sync for user {user_id}: {e}")
 
     SEED_PROBLEMS = {
         "leetcode": [
