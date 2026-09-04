@@ -48,6 +48,121 @@ def get_db_connection():
         return conn, True
 
 
+BACKUP_FILE = os.path.join(os.path.dirname(__file__), "user_credentials_backup.json")
+
+def load_persistent_backup():
+    """Load JSON backup from disk or return default data structure."""
+    if os.path.exists(BACKUP_FILE):
+        try:
+            with open(BACKUP_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if data and isinstance(data, dict) and "users" in data:
+                    return data
+        except Exception as e:
+            print("Notice reading persistent backup:", e)
+    return {
+        "users": {
+            "vishpratee2004@gmail.com": {
+                "name": "Prateek Vishwakarma",
+                "password_hash": "scrypt:32768:8:1$iNQjdGzmAFr7njig$4aeff2c150b92afc1451109f005504bf1f746ad92dc160cac02ac206d6e9496faa1ddf6c58ad15e0412706e1d805e1fa0d6d810a8932325fe558e342952e5b4f",
+                "headline": "Competitive Programmer & Developer",
+                "college": "IMS Engineering College",
+                "location": "Delhi NCR, India",
+                "bio": "Passionate problem solver & full stack developer.",
+                "github_url": "https://github.com/Prateekvish-cloud",
+                "linkedin_url": "https://www.linkedin.com/in/prateek-pkv/",
+                "role": "student",
+                "handles": {
+                    "leetcode": "Prateek_vish",
+                    "github": "Prateekvish-cloud",
+                    "geeksforgeeks": "vishpratdzsq",
+                    "codechef": "crash_chef_57",
+                    "codeforces": "Prateek24_",
+                    "hackerrank": "vishpratee2004"
+                }
+            }
+        }
+    }
+
+
+def save_persistent_backup(backup_data):
+    """Atomically save backup data to disk."""
+    try:
+        with open(BACKUP_FILE, "w", encoding="utf-8") as f:
+            json.dump(backup_data, f, indent=2)
+    except Exception as e:
+        print("Notice writing persistent backup:", e)
+
+
+def backup_user_state(email, name=None, password_hash=None, college=None, location=None, bio=None, handle_dict=None):
+    """Update or add user state in persistent JSON backup."""
+    if not email:
+        return
+    email_clean = email.strip().lower()
+    backup_data = load_persistent_backup()
+    users = backup_data.setdefault("users", {})
+
+    u = users.setdefault(email_clean, {
+        "name": name or email_clean.split("@")[0].capitalize(),
+        "password_hash": password_hash or generate_password_hash("password"),
+        "college": college or "IMS Engineering College",
+        "location": location or "Delhi NCR, India",
+        "bio": bio or "Passionate competitive programmer and developer.",
+        "handles": {}
+    })
+
+    if name:
+        u["name"] = name
+    if password_hash:
+        u["password_hash"] = password_hash
+    if college:
+        u["college"] = college
+    if location:
+        u["location"] = location
+    if bio:
+        u["bio"] = bio
+    if handle_dict and isinstance(handle_dict, dict):
+        u.setdefault("handles", {}).update(handle_dict)
+
+    save_persistent_backup(backup_data)
+
+
+def restore_persistent_state_to_db():
+    """Restore all backed-up users, passwords, and connected handles to SQLite/MySQL DB."""
+    backup_data = load_persistent_backup()
+    users = backup_data.get("users", {})
+
+    for email, u_info in users.items():
+        try:
+            name = u_info.get("name") or "Prateek Vishwakarma"
+            pw_hash = u_info.get("password_hash") or generate_password_hash("password")
+            college = u_info.get("college") or "IMS Engineering College"
+            location = u_info.get("location") or "Delhi NCR, India"
+            bio = u_info.get("bio") or ""
+
+            # Check if user exists in DB
+            existing = db_query("SELECT id FROM users WHERE LOWER(email) = %s", (email.lower(),), fetchone=True)
+            if not existing:
+                db_query(
+                    "INSERT INTO users (name, email, password_hash, college, location, bio, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (name, email.lower(), pw_hash, college, location, bio, datetime.utcnow()),
+                    commit=True
+                )
+                existing = db_query("SELECT id FROM users WHERE LOWER(email) = %s", (email.lower(),), fetchone=True)
+
+            if existing:
+                uid = existing["id"]
+                db_query("UPDATE users SET password_hash = %s, college = %s, location = %s WHERE id = %s", (pw_hash, college, location, uid), commit=True)
+
+                # Restore handles into coding_profiles
+                handles = u_info.get("handles", {})
+                for plat, h_val in handles.items():
+                    if h_val:
+                        save_user_coding_profile(uid, plat, h_val, "Connected", 0, "Connected")
+        except Exception as err:
+            print(f"Notice restoring persistent user {email}: {err}")
+
+
 def init_db_tables():
     """Ensure database tables exist on startup for both MySQL and SQLite."""
     conn = None
@@ -318,16 +433,12 @@ def init_db_tables():
         except Exception as u_err:
             print("Notice checking default user:", u_err)
 
-
-
     except Exception as e:
         print(f"Notice: DB initialization step: {e}")
 
     finally:
         if conn:
             conn.close()
-
-
 
 # Run DB table init
 init_db_tables()
@@ -480,6 +591,46 @@ def save_user_coding_profile(user_id, platform, username, rating, solved_count, 
         ON DUPLICATE KEY UPDATE username = VALUES(username), problems_solved = VALUES(problems_solved), rating = VALUES(rating), solved_label = VALUES(solved_label), connected = TRUE, last_synced = VALUES(last_synced)
     """
     db_query(query, (user_id, platform.lower(), username, solved_count, rating, solved_label, datetime.utcnow()), commit=True)
+
+
+def restore_persistent_state_to_db():
+    """Restore all backed-up users, passwords, and connected handles to SQLite/MySQL DB."""
+    backup_data = load_persistent_backup()
+    users = backup_data.get("users", {})
+
+    for email, u_info in users.items():
+        try:
+            name = u_info.get("name") or "Prateek Vishwakarma"
+            pw_hash = u_info.get("password_hash") or generate_password_hash("password")
+            college = u_info.get("college") or "IMS Engineering College"
+            location = u_info.get("location") or "Delhi NCR, India"
+            bio = u_info.get("bio") or ""
+
+            # Check if user exists in DB
+            existing = db_query("SELECT id FROM users WHERE LOWER(email) = %s", (email.lower(),), fetchone=True)
+            if not existing:
+                db_query(
+                    "INSERT INTO users (name, email, password_hash, college, location, bio, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (name, email.lower(), pw_hash, college, location, bio, datetime.utcnow()),
+                    commit=True
+                )
+                existing = db_query("SELECT id FROM users WHERE LOWER(email) = %s", (email.lower(),), fetchone=True)
+
+            if existing:
+                uid = existing["id"]
+                db_query("UPDATE users SET password_hash = %s, college = %s, location = %s WHERE id = %s", (pw_hash, college, location, uid), commit=True)
+
+                # Restore handles into coding_profiles
+                handles = u_info.get("handles", {})
+                for plat, h_val in handles.items():
+                    if h_val:
+                        save_user_coding_profile(uid, plat, h_val, "Connected", 0, "Connected")
+        except Exception as err:
+            print(f"Notice restoring persistent user {email}: {err}")
+
+
+# Restore backed-up user accounts & handles to DB
+restore_persistent_state_to_db()
 
 
 def save_sync_log(user_id, platform, status, message):
@@ -760,6 +911,8 @@ def signup():
             commit=True
         )
 
+        backup_user_state(email, name=name, password_hash=password_hash, college=college, location=location)
+
         flash("Account created successfully! Please log in.", "success")
         return redirect(url_for("login"))
 
@@ -918,6 +1071,7 @@ def forgot_password():
                     (new_hash, u["id"]),
                     commit=True
                 )
+                backup_user_state(u["email"], password_hash=new_hash)
 
             primary_user = users[0]
             session["user_id"] = primary_user["id"]
@@ -2882,6 +3036,9 @@ def connect_platform():
         solved_cnt = (result.get("total_solved") if result else 0) or 0
 
         save_user_coding_profile(user_id, platform, handle, rating_val, solved_cnt, solved_val)
+        u_rec = db_query("SELECT email FROM users WHERE id = %s", (user_id,), fetchone=True)
+        if u_rec and u_rec.get("email"):
+            backup_user_state(u_rec["email"], handle_dict={platform: handle})
         ensure_user_solved_problems_synced(user_id)
         msg = f"Fetched {solved_val} & rating '{rating_val}'"
         save_sync_log(user_id, platform, "✓ Synced (200 OK)", msg)
