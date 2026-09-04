@@ -2349,7 +2349,7 @@ def user_profile():
         "headline": db_user.get("headline") or "Competitive Programmer & Developer",
         "location": db_user.get("location") or "Delhi NCR, India",
         "college": db_user.get("college") or "IMS Engineering College",
-        "grad_year": "2025",
+        "grad_year": db_user.get("grad_year") or "",
         "bio": db_user.get("bio") or "Passionate problem solver & full stack developer.",
         "github": db_user.get("github_url") or "https://github.com",
         "linkedin": db_user.get("linkedin_url") or "https://linkedin.com"

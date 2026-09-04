@@ -34,7 +34,7 @@
           <p>{{ profile.headline }}</p>
           <div class="dash-user-meta">
             <span>📍 {{ profile.location }}</span>
-            <span>🎓 {{ profile.college }} ({{ profile.grad_year }})</span>
+            <span>🎓 {{ profile.college }}{% if profile.grad_year %} ({{ profile.grad_year }}){% endif %}</span>
           </div>
           <p style="font-size:13px; color:var(--muted); margin-top:8px; max-width:600px;">{{ profile.bio }}</p>
         </div>

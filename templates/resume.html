@@ -195,7 +195,7 @@
         <p class="res-title">{{ profile.headline }}</p>
         <div class="res-contact-links">
           <span>📍 {{ profile.location }}</span>
-          <span>🎓 {{ profile.college }} (Class of {{ profile.grad_year }})</span>
+          <span>🎓 {{ profile.college }}{% if profile.grad_year %} (Class of {{ profile.grad_year }}){% endif %}</span>
           <span>🐙 <a href="{{ profile.github }}" target="_blank">{% if profile.github_handle %}github.com/{{ profile.github_handle }}{% elif profile.github %}{{ profile.github }}{% else %}Not connected{% endif %}</a></span>
           {% if profile.leetcode_handle %}<span>⚡ <a href="{{ profile.leetcode_url }}" target="_blank">leetcode.com/{{ profile.leetcode_handle }}</a></span>{% endif %}
         </div>
