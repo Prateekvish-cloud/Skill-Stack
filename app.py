@@ -3077,6 +3077,127 @@ def batch_connect_platforms():
     })
 
 
+@app.route("/api/streak-calendar")
+@login_required
+def api_streak_calendar():
+    """Return real daily submission counts from connected platforms for the heatmap.
+    Returns: {date_str: count, ...} for the past 180 days.
+    """
+    user_id = session.get("user_id", 1)
+    user_profiles = get_user_coding_profiles(user_id)
+
+    # Build handle lookup
+    handles = {}
+    for p in user_profiles:
+        if p.get("connected") and p.get("raw_handle"):
+            handles[p["key"]] = p["raw_handle"]
+
+    daily_counts = {}  # {YYYY-MM-DD: count}
+    today = datetime.utcnow().date()
+    cutoff = today - timedelta(days=180)
+
+    def add_date(dt_date, count=1):
+        if dt_date >= cutoff:
+            key = dt_date.strftime("%Y-%m-%d")
+            daily_counts[key] = daily_counts.get(key, 0) + count
+
+    # 1. LeetCode - submissionCalendar (returns Unix timestamps)
+    lc_handle = handles.get("leetcode")
+    if lc_handle:
+        try:
+            url = "https://leetcode.com/graphql"
+            query = """
+            query userCalendar($username: String!) {
+              matchedUser(username: $username) {
+                submissionCalendar
+              }
+            }
+            """
+            payload = json.dumps({"query": query, "variables": {"username": lc_handle}}).encode("utf-8")
+            req = urllib.request.Request(
+                url, data=payload,
+                headers={"Content-Type": "application/json",
+                         "User-Agent": "Mozilla/5.0",
+                         "Referer": f"https://leetcode.com/{lc_handle}/"}
+            )
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                res = json.loads(resp.read().decode())
+                cal_str = (res.get("data", {}).get("matchedUser") or {}).get("submissionCalendar", "{}")
+                cal = json.loads(cal_str) if isinstance(cal_str, str) else {}
+                for ts_str, cnt in cal.items():
+                    try:
+                        dt = datetime.utcfromtimestamp(int(ts_str)).date()
+                        add_date(dt, int(cnt))
+                    except Exception:
+                        pass
+        except Exception as e:
+            print(f"Streak calendar LeetCode fetch note: {e}")
+
+    # 2. GitHub - contributions via scraping or GraphQL
+    gh_handle = handles.get("github")
+    if gh_handle:
+        try:
+            # Use GitHub's contribution calendar endpoint
+            url = f"https://github.com/users/{gh_handle}/contributions"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                html = resp.read().decode("utf-8", errors="replace")
+            import re
+            # Parse <td ... data-date="YYYY-MM-DD" data-count="N" ...>
+            for m in re.finditer(r'data-date="(\d{4}-\d{2}-\d{2})"[^>]*data-count="(\d+)"', html):
+                try:
+                    dt = datetime.strptime(m.group(1), "%Y-%m-%d").date()
+                    cnt = int(m.group(2))
+                    if cnt > 0:
+                        add_date(dt, cnt)
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"Streak calendar GitHub fetch note: {e}")
+
+    # 3. Codeforces - submission timestamps
+    cf_handle = handles.get("codeforces")
+    if cf_handle:
+        try:
+            url = f"https://codeforces.com/api/user.status?handle={cf_handle}&from=1&count=500"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = json.loads(resp.read().decode())
+            if data.get("status") == "OK":
+                for sub in data.get("result", []):
+                    if sub.get("verdict") == "OK":
+                        try:
+                            dt = datetime.utcfromtimestamp(sub["creationTimeSeconds"]).date()
+                            add_date(dt, 1)
+                        except Exception:
+                            pass
+        except Exception as e:
+            print(f"Streak calendar Codeforces fetch note: {e}")
+
+    # 4. GFG - we don't have submission dates from GFG public API; skip
+    # 5. CodeChef - we don't have daily dates from current scraper; skip
+
+    # Build streak count from daily_counts
+    streak = 0
+    check = today
+    while True:
+        k = check.strftime("%Y-%m-%d")
+        if daily_counts.get(k, 0) > 0:
+            streak += 1
+            check -= timedelta(days=1)
+        else:
+            break
+
+    total = sum(daily_counts.values())
+
+    return jsonify({
+        "success": True,
+        "daily": daily_counts,
+        "streak": streak,
+        "total": total
+    })
+
+
 @app.route("/api/sync-stats", methods=["POST"])
 @login_required
 def sync_stats():

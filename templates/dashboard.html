@@ -238,9 +238,9 @@
         <section class="panel">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
             <h2 style="margin:0;">Unified Streak Calendar</h2>
-            <span style="font-size:11.5px; color:#39d353; font-weight:600; background:rgba(57,211,83,0.12); padding:3px 10px; border-radius:12px; border:1px solid rgba(57,211,83,0.25);">🔥 {{ stats.streak_days }} Days</span>
+            <span id="streakBadge" style="font-size:11.5px; color:#39d353; font-weight:600; background:rgba(57,211,83,0.12); padding:3px 10px; border-radius:12px; border:1px solid rgba(57,211,83,0.25);">🔥 Loading...</span>
           </div>
-          <p class="panel-empty" style="font-size:12px; margin-bottom:14px;">Submissions on LC, GH & CC</p>
+          <p class="panel-empty" style="font-size:12px; margin-bottom:14px;">Real submissions from LC, GH & CF</p>
           
           <!-- Structured Calendar with Day/Month Labels -->
           <div style="display:flex; gap:10px;">
@@ -252,21 +252,16 @@
             </div>
 
             <div style="flex:1; min-width:0;">
-              <!-- Month Labels Header -->
-              <div style="display:grid; grid-template-columns: repeat(4, 1fr); font-size:11px; color:var(--muted); font-weight:600; margin-bottom:6px; text-align:left;">
-                <span>May</span>
-                <span>Jun</span>
-                <span>Jul</span>
-                <span>Aug</span>
-              </div>
+              <!-- Month Labels Header (dynamic) -->
+              <div id="heatmapMonths" style="display:grid; grid-template-columns: repeat(4, 1fr); font-size:11px; color:var(--muted); font-weight:600; margin-bottom:6px; text-align:left;"></div>
               <!-- Heatmap Grid -->
-              <div class="heatmap-grid" id="dashHeatmap"></div>
+              <div class="heatmap-grid" id="dashHeatmap"><div style="color:var(--muted);font-size:11px;padding:8px;">Loading real data...</div></div>
             </div>
           </div>
 
           <!-- Footer Summary & Legend -->
           <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px; padding-top:10px; border-top:1px solid rgba(216,207,188,0.1);">
-            <span style="font-size:11px; color:var(--muted);">{{ stats.problems_solved }} total submissions</span>
+            <span id="heatmapTotal" style="font-size:11px; color:var(--muted);">Loading submissions...</span>
             <div style="display:flex; align-items:center; gap:4px; font-size:10.5px; color:var(--muted);">
               <span>Less</span>
               <span class="heat-cell level-0" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="No activity"></span>
@@ -616,21 +611,68 @@
   const chartDs = {{ chart_datasets | tojson }};
   const topicCounts = {{ topic_counts | tojson }};
 
-  // Populate Dashboard Heatmap
-  const dashHeatmap = document.getElementById('dashHeatmap');
-  const daysTotal = 84;
-  const today = new Date();
-  
-  for (let i = daysTotal - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(today.getDate() - i);
-    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const cell = document.createElement('div');
-    const level = userSolvedTotal > 50 ? (i % 5 === 0 ? 3 : (i % 3 === 0 ? 2 : 1)) : 0;
-    cell.className = `heat-cell level-${level}`;
-    cell.title = `${dateStr}: ${level > 0 ? level * 2 + ' submissions' : 'No activity'}`;
-    if (dashHeatmap) dashHeatmap.appendChild(cell);
-  }
+  // Populate Dashboard Heatmap with REAL data from API
+  (function() {
+    const dashHeatmap = document.getElementById('dashHeatmap');
+    const streakBadge = document.getElementById('streakBadge');
+    const heatmapTotal = document.getElementById('heatmapTotal');
+    const heatmapMonths = document.getElementById('heatmapMonths');
+    const DAYS = 112; // 16 weeks
+
+    function buildHeatmap(dailyData) {
+      if (!dashHeatmap) return;
+      dashHeatmap.innerHTML = '';
+
+      const today = new Date();
+      // Compute month labels for the 16 weeks shown
+      if (heatmapMonths) {
+        const months = {};
+        for (let i = DAYS - 1; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(today.getDate() - i);
+          const mn = d.toLocaleString('en-US', { month: 'short' });
+          months[mn] = true;
+        }
+        const monthList = Object.keys(months).slice(-4);
+        heatmapMonths.innerHTML = monthList.map(m => `<span>${m}</span>`).join('');
+      }
+
+      for (let i = DAYS - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(today.getDate() - i);
+        const dateKey = d.toISOString().split('T')[0]; // YYYY-MM-DD
+        const count = (dailyData || {})[dateKey] || 0;
+        const level = count === 0 ? 0 : count <= 2 ? 1 : count <= 5 ? 2 : count <= 9 ? 3 : 4;
+        const cell = document.createElement('div');
+        cell.className = `heat-cell level-${level}`;
+        const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        cell.title = `${label}: ${count > 0 ? count + ' submission' + (count > 1 ? 's' : '') : 'No activity'}`;
+        dashHeatmap.appendChild(cell);
+      }
+    }
+
+    // Fetch real data from the API
+    fetch('/api/streak-calendar')
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.success) {
+          buildHeatmap(data.daily);
+          if (streakBadge) streakBadge.textContent = `🔥 ${data.streak} Day${data.streak !== 1 ? 's' : ''}`;
+          if (heatmapTotal) heatmapTotal.textContent = `${data.total} total submissions (LC + GH + CF)`;
+        } else {
+          // No platforms connected yet
+          buildHeatmap({});
+          if (streakBadge) streakBadge.textContent = '🔥 0 Days';
+          if (heatmapTotal) heatmapTotal.textContent = 'Connect platforms to see real data';
+        }
+      })
+      .catch(() => {
+        // Fallback: render empty grid
+        buildHeatmap({});
+        if (streakBadge) streakBadge.textContent = '🔥 0 Days';
+        if (heatmapTotal) heatmapTotal.textContent = 'Connect platforms to see real data';
+      });
+  })();
 
   // Dashboard Multi-Platform Solved Progression Line Chart
   new Chart(document.getElementById('dashRatingChart'), {
