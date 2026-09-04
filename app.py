@@ -318,13 +318,7 @@ def init_db_tables():
         except Exception as u_err:
             print("Notice checking default user:", u_err)
 
-        # Ensure legacy demo/mock profiles are removed so un-connected users start with clean zero state
-        try:
-            cursor.execute("DELETE FROM coding_profiles WHERE username IN ('Prateek_vish', 'prateekv', 'prateek_v', 'Prateekvish-cloud') AND (problems_solved = 15 OR problems_solved = 30 OR problems_solved = 10 OR problems_solved = 8 OR problems_solved = 5 OR problems_solved = 25)")
-            cursor.execute("DELETE FROM user_solved_problems WHERE user_id = 1 AND (created_at IS NULL OR title LIKE 'Two Sum%')")
-            conn.commit()
-        except Exception as seed_err:
-            print("Notice cleaning mock profiles:", seed_err)
+
 
     except Exception as e:
         print(f"Notice: DB initialization step: {e}")
