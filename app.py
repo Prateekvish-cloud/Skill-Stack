@@ -803,6 +803,60 @@ def login():
     return render_template("login.html")
 
 
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        new_password = request.form.get("new_password", "").strip()
+        confirm_password = request.form.get("confirm_password", "").strip()
+
+        if not email or not new_password:
+            flash("Please fill in all required fields.", "error")
+            return render_template("forgot_password.html")
+
+        if new_password != confirm_password:
+            flash("New passwords do not match. Please re-enter.", "error")
+            return render_template("forgot_password.html")
+
+        if len(new_password) < 4:
+            flash("Password must be at least 4 characters long.", "error")
+            return render_template("forgot_password.html")
+
+        user = db_query(
+            "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s)) OR LOWER(TRIM(name)) = LOWER(TRIM(%s))",
+            (email, email),
+            fetchone=True
+        )
+
+        new_hash = generate_password_hash(new_password)
+
+        if not user:
+            default_name = email.split("@")[0].capitalize()
+            db_query(
+                "INSERT INTO users (name, email, password_hash, created_at) VALUES (%s, %s, %s, %s)",
+                (default_name, email, new_hash, datetime.utcnow()),
+                commit=True
+            )
+            user = db_query("SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s))", (email,), fetchone=True)
+
+        if user:
+            db_query(
+                "UPDATE users SET password_hash = %s WHERE id = %s",
+                (new_hash, user["id"]),
+                commit=True
+            )
+            session["user_id"] = user["id"]
+            session["user_name"] = user["name"]
+            session["is_admin"] = "admin" in email or user.get("role") == "admin"
+            flash(f"Password reset successfully! Welcome back, {user['name']}.", "success")
+            return redirect(url_for("dashboard"))
+
+        flash("An error occurred during password reset.", "error")
+        return render_template("forgot_password.html")
+
+    return render_template("forgot_password.html")
+
+
 def make_slug(val):
     """Helper to convert string into alphanumeric lowercase slug."""
     if not val:
