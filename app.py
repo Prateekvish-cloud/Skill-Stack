@@ -306,7 +306,7 @@ def init_db_tables():
         try:
             cursor.execute("SELECT COUNT(*) FROM users")
             cnt_row = cursor.fetchone()
-            user_cnt = cnt_row[0] if isinstance(cnt_row, (tuple, list)) else (cnt_row.get("COUNT(*)") or cnt_row.get("count", 0) if isinstance(cnt_row, dict) else 0)
+            user_cnt = (cnt_row[0] if cnt_row is not None else 0) if not isinstance(cnt_row, dict) else (cnt_row.get("COUNT(*)") or cnt_row.get("count", 0))
             if user_cnt == 0:
                 pw_hash = generate_password_hash("password")
                 cursor.execute(
@@ -319,7 +319,7 @@ def init_db_tables():
             # Ensure default user (ID 1) has connected coding profiles pre-seeded so profile data is never lost on restart
             cursor.execute("SELECT COUNT(*) FROM coding_profiles WHERE user_id = 1")
             prof_row = cursor.fetchone()
-            prof_cnt = prof_row[0] if isinstance(prof_row, (tuple, list)) else (prof_row.get("COUNT(*)") or prof_row.get("count", 0) if isinstance(prof_row, dict) else 0)
+            prof_cnt = (prof_row[0] if prof_row is not None else 0) if not isinstance(prof_row, dict) else (prof_row.get("COUNT(*)") or prof_row.get("count", 0))
             if prof_cnt == 0:
                 default_profiles = [
                     ("leetcode", "Prateek_vish", 15, "1500", "15 Solved"),
@@ -799,32 +799,43 @@ def login():
             flash("Please enter both email and password.", "error")
             return render_template("login.html")
 
-        # Allow matching on email OR name/username (case-insensitive & trimmed)
-        user = db_query(
+        # Fetch all users matching email OR name/username (case-insensitive & trimmed)
+        users = db_query(
             "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s)) OR LOWER(TRIM(name)) = LOWER(TRIM(%s))",
             (identifier, identifier),
-            fetchone=True
+            fetchall=True
         )
 
-        if not user:
+        if not users:
             # Check if database user table is empty and auto-seed if needed
             all_u = db_query("SELECT email FROM users LIMIT 1", fetchone=True)
             if not all_u:
                 init_db_tables()
-                user = db_query("SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s))", (identifier,), fetchone=True)
+                users = db_query(
+                    "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s)) OR LOWER(TRIM(name)) = LOWER(TRIM(%s))",
+                    (identifier, identifier),
+                    fetchall=True
+                )
 
-        if user:
-            if check_password_hash(user["password_hash"], password) or password == "password":
-                session["user_id"] = user["id"]
-                session["user_name"] = user["name"]
-                session["is_admin"] = "admin" in identifier.lower() or user.get("role") == "admin"
-                flash(f"Welcome back, {user['name']}!", "success")
+        if users:
+            matched_user = None
+            for u in users:
+                pw_hash = u.get("password_hash") or ""
+                if pw_hash and (check_password_hash(pw_hash, password) or password == "password"):
+                    matched_user = u
+                    break
+
+            if matched_user:
+                session["user_id"] = matched_user["id"]
+                session["user_name"] = matched_user["name"]
+                session["is_admin"] = "admin" in identifier.lower() or matched_user.get("role") == "admin"
+                flash(f"Welcome back, {matched_user['name']}!", "success")
                 return redirect(url_for("dashboard"))
             else:
-                flash("Incorrect password. Please verify your password or create a new account.", "error")
+                flash("Incorrect password. Please verify your password or click 'Forgot password?' below to reset it.", "error")
                 return render_template("login.html")
 
-        flash("No account found with this email. Please click 'Create an account' below to sign up.", "error")
+        flash("No account found with this email or username. Please click 'Create an account' below to sign up.", "error")
         return render_template("login.html")
 
     return render_template("login.html")
@@ -849,33 +860,41 @@ def forgot_password():
             flash("Password must be at least 4 characters long.", "error")
             return render_template("forgot_password.html")
 
-        user = db_query(
+        users = db_query(
             "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s)) OR LOWER(TRIM(name)) = LOWER(TRIM(%s))",
             (email, email),
-            fetchone=True
+            fetchall=True
         )
 
         new_hash = generate_password_hash(new_password)
 
-        if not user:
-            default_name = email.split("@")[0].capitalize()
+        if not users:
+            default_name = email.split("@")[0].capitalize() if "@" in email else email.capitalize()
             db_query(
                 "INSERT INTO users (name, email, password_hash, created_at) VALUES (%s, %s, %s, %s)",
                 (default_name, email, new_hash, datetime.utcnow()),
                 commit=True
             )
-            user = db_query("SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s))", (email,), fetchone=True)
-
-        if user:
-            db_query(
-                "UPDATE users SET password_hash = %s WHERE id = %s",
-                (new_hash, user["id"]),
-                commit=True
+            users = db_query(
+                "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s)) OR LOWER(TRIM(name)) = LOWER(TRIM(%s))",
+                (email, email),
+                fetchall=True
             )
-            session["user_id"] = user["id"]
-            session["user_name"] = user["name"]
-            session["is_admin"] = "admin" in email or user.get("role") == "admin"
-            flash(f"Password reset successfully! Welcome back, {user['name']}.", "success")
+
+        if users:
+            # Update password for ALL matching accounts to ensure password update is persisted
+            for u in users:
+                db_query(
+                    "UPDATE users SET password_hash = %s WHERE id = %s",
+                    (new_hash, u["id"]),
+                    commit=True
+                )
+
+            primary_user = users[0]
+            session["user_id"] = primary_user["id"]
+            session["user_name"] = primary_user["name"]
+            session["is_admin"] = "admin" in email or primary_user.get("role") == "admin"
+            flash(f"Password updated successfully! Welcome back, {primary_user['name']}.", "success")
             return redirect(url_for("dashboard"))
 
         flash("An error occurred during password reset.", "error")
