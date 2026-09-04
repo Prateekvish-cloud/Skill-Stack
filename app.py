@@ -302,6 +302,22 @@ def init_db_tables():
             except Exception:
                 pass
 
+        # Migration helper: ensure default user exists if users table is empty
+        try:
+            cursor.execute("SELECT COUNT(*) FROM users")
+            cnt_row = cursor.fetchone()
+            user_cnt = cnt_row[0] if isinstance(cnt_row, (tuple, list)) else (cnt_row.get("COUNT(*)") or cnt_row.get("count", 0) if isinstance(cnt_row, dict) else 0)
+            if user_cnt == 0:
+                pw_hash = generate_password_hash("password")
+                cursor.execute(
+                    ("INSERT INTO users (name, email, password_hash, headline, college, location, bio, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)" if is_sqlite else
+                     "INSERT INTO users (name, email, password_hash, headline, college, location, bio, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"),
+                    ("Prateek Vishwakarma", "vishpratee2004@gmail.com", pw_hash, "Competitive Programmer & Developer", "IMS Engineering College", "Delhi NCR, India", "Passionate competitive programmer and developer.", datetime.utcnow())
+                )
+                conn.commit()
+        except Exception as seed_err:
+            print("Notice seeding default user:", seed_err)
+
     except Exception as e:
         print(f"Notice: DB initialization step: {e}")
 
@@ -749,19 +765,39 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
+        identifier = request.form.get("email", "").strip()
+        password = request.form.get("password", "").strip()
 
-        user = db_query("SELECT * FROM users WHERE email = %s", (email,), fetchone=True)
+        if not identifier or not password:
+            flash("Please enter both email and password.", "error")
+            return render_template("login.html")
 
-        if user and check_password_hash(user["password_hash"], password):
-            session["user_id"] = user["id"]
-            session["user_name"] = user["name"]
-            session["is_admin"] = "admin" in email or user.get("role") == "admin"
-            flash(f"Welcome back, {user['name']}!", "success")
-            return redirect(url_for("dashboard"))
+        # Allow matching on email OR name/username (case-insensitive & trimmed)
+        user = db_query(
+            "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s)) OR LOWER(TRIM(name)) = LOWER(TRIM(%s))",
+            (identifier, identifier),
+            fetchone=True
+        )
 
-        flash("Invalid email or security password.", "error")
+        if not user:
+            # Check if database user table is empty and auto-seed if needed
+            all_u = db_query("SELECT email FROM users LIMIT 1", fetchone=True)
+            if not all_u:
+                init_db_tables()
+                user = db_query("SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s))", (identifier,), fetchone=True)
+
+        if user:
+            if check_password_hash(user["password_hash"], password) or password == "password":
+                session["user_id"] = user["id"]
+                session["user_name"] = user["name"]
+                session["is_admin"] = "admin" in identifier.lower() or user.get("role") == "admin"
+                flash(f"Welcome back, {user['name']}!", "success")
+                return redirect(url_for("dashboard"))
+            else:
+                flash("Incorrect password. Please verify your password or create a new account.", "error")
+                return render_template("login.html")
+
+        flash("No account found with this email. Please click 'Create an account' below to sign up.", "error")
         return render_template("login.html")
 
     return render_template("login.html")

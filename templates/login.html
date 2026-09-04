@@ -15,6 +15,16 @@
       </button>
     </div>
 
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div style="padding:10px 14px; border-radius:10px; font-size:12.5px; font-weight:600; margin-bottom:16px; text-align:left; background:{{ 'rgba(255,82,82,0.15)' if category == 'error' else 'rgba(57,211,83,0.15)' }}; border:1px solid {{ '#ff5252' if category == 'error' else '#39d353' }}; color:{{ '#ff5252' if category == 'error' else '#39d353' }};">
+            {{ msg }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
     <!-- Form 1: Student Login Form -->
     <div id="studentLoginForm">
       <h1 style="font-size:22px; margin:0 0 4px 0;">Student Portal</h1>
