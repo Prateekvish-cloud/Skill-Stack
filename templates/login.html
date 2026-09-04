@@ -36,16 +36,19 @@
           <input type="email" id="email" name="email" required placeholder="you@example.com" autocomplete="email" inputmode="email" />
         </div>
         <div class="field">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label for="password">Password</label>
-            <a href="{{ url_for('forgot_password') }}" style="font-size:12px; color:var(--primary); text-decoration:none; font-weight:600;">Forgot password?</a>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+            <label for="password" style="margin:0;">Password</label>
+            <a href="{{ url_for('forgot_password') }}" style="font-size:12px; color:var(--primary); text-decoration:none; font-weight:700;">Forgot password?</a>
           </div>
           <input type="password" id="password" name="password" required placeholder="••••••••" autocomplete="current-password" />
         </div>
-        <button type="submit" class="btn-primary" style="padding:14px; font-size:14px; font-weight:700; width:100%;">Log in to Student Dashboard ↗</button>
+        <button type="submit" class="btn-primary" style="padding:14px; font-size:14px; font-weight:700; width:100%; margin-top:4px;">Log in to Student Dashboard ↗</button>
       </form>
 
-      <p class="auth-switch" style="margin-top:16px;">New student? <a href="{{ url_for('signup') }}">Create an account</a></p>
+      <div class="auth-switch" style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-size:13px;">
+        <span>New student? <a href="{{ url_for('signup') }}" style="font-weight:700;">Create an account</a></span>
+        <a href="{{ url_for('forgot_password') }}" style="color:var(--primary); font-weight:700; text-decoration:none;">🔑 Forgot password?</a>
+      </div>
     </div>
 
     <!-- Form 2: Admin Login Form (Hidden by default) -->
