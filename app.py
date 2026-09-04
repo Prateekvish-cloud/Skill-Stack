@@ -16,6 +16,12 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
+@app.route("/ping")
+@app.route("/health")
+def ping_health():
+    """Health check & uptime monitor endpoint to keep Render warm 24/7."""
+    return jsonify({"status": "ok", "app": "SkillStack", "timestamp": datetime.now().isoformat()}), 200
+
 DB_MODE = "mysql"
 
 def get_db_connection():

@@ -2,15 +2,15 @@
 {% block title %}Log in — Skill Stack{% endblock %}
 {% block content %}
 <div class="auth-screen">
-  <div class="auth-card" style="max-width:420px;">
+  <div class="auth-card" style="max-width:420px; width:100%;">
     <div class="brand" style="margin-bottom:12px;">Skill<span>Stack</span></div>
     
     <!-- Dual Role Login Tab Bar -->
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:rgba(35,36,28,0.8); padding:4px; border-radius:10px; border:1px solid rgba(216,207,188,0.25); margin-bottom:20px;">
-      <button type="button" id="tabStudentBtn" onclick="switchLoginRole('student')" style="padding:8px 10px; font-size:12.5px; font-weight:700; border:none; border-radius:7px; cursor:pointer; background:#D8CFBC; color:#1e1f19; transition:all 0.2s;">
+      <button type="button" id="tabStudentBtn" onclick="switchLoginRole('student')" style="padding:10px 12px; font-size:13px; font-weight:700; border:none; border-radius:7px; cursor:pointer; background:#D8CFBC; color:#1e1f19; transition:all 0.2s;">
         🎓 Student Login
       </button>
-      <button type="button" id="tabAdminBtn" onclick="switchLoginRole('admin')" style="padding:8px 10px; font-size:12.5px; font-weight:700; border:none; border-radius:7px; cursor:pointer; background:transparent; color:var(--muted); transition:all 0.2s;">
+      <button type="button" id="tabAdminBtn" onclick="switchLoginRole('admin')" style="padding:10px 12px; font-size:13px; font-weight:700; border:none; border-radius:7px; cursor:pointer; background:transparent; color:var(--muted); transition:all 0.2s;">
         👑 Educator Admin
       </button>
     </div>
@@ -23,13 +23,13 @@
       <form method="POST" action="{{ url_for('login') }}" class="auth-form">
         <div class="field">
           <label for="email">Student Email</label>
-          <input type="email" id="email" name="email" required placeholder="you@example.com" />
+          <input type="email" id="email" name="email" required placeholder="you@example.com" autocomplete="email" inputmode="email" />
         </div>
         <div class="field">
           <label for="password">Password</label>
-          <input type="password" id="password" name="password" required placeholder="••••••••" />
+          <input type="password" id="password" name="password" required placeholder="••••••••" autocomplete="current-password" />
         </div>
-        <button type="submit" class="btn-primary" style="padding:12px; font-size:13.5px; font-weight:700;">Log in to Student Dashboard ↗</button>
+        <button type="submit" class="btn-primary" style="padding:14px; font-size:14px; font-weight:700; width:100%;">Log in to Student Dashboard ↗</button>
       </form>
 
       <p class="auth-switch" style="margin-top:16px;">New student? <a href="{{ url_for('signup') }}">Create an account</a></p>
@@ -42,14 +42,14 @@
 
       <form method="POST" action="{{ url_for('admin_login') }}" class="auth-form">
         <div class="field">
-          <label>Admin Email Address</label>
-          <input type="email" name="email" value="admin@skillstack.com" required placeholder="admin@skillstack.com" />
+          <label for="admin_email">Admin Email Address</label>
+          <input type="email" id="admin_email" name="email" value="admin@skillstack.com" required placeholder="admin@skillstack.com" autocomplete="email" inputmode="email" />
         </div>
         <div class="field">
-          <label>Security Key / Password</label>
-          <input type="password" name="password" value="admin123" required placeholder="••••••••" />
+          <label for="admin_password">Security Key / Password</label>
+          <input type="password" id="admin_password" name="password" value="admin123" required placeholder="••••••••" autocomplete="current-password" />
         </div>
-        <button type="submit" class="btn-primary" style="padding:12px; font-size:13.5px; font-weight:700;">
+        <button type="submit" class="btn-primary" style="padding:14px; font-size:14px; font-weight:700; width:100%;">
           🔑 Authenticate Admin Access ↗
         </button>
       </form>
