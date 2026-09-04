@@ -153,8 +153,18 @@
 
             <!-- Social Links & Handle Quick Action Pills -->
             <div style="display:flex; gap: 8px; flex-wrap:wrap; align-items:center;">
+              {% if profile_user.github_url and profile_user.github_url != 'https://github.com' %}
+              <a href="{{ profile_user.github_url }}" target="_blank" class="tag-pill" style="font-size: 12px; font-weight:700; padding:5px 12px; text-decoration:none; color:#D8CFBC; background:rgba(216,207,188,0.18); border:1px solid rgba(216,207,188,0.4);">🐙 GitHub Profile ↗</a>
+              {% else %}
               <a href="{{ profile_user.github_url }}" target="_blank" class="tag-pill" style="font-size: 11px; text-decoration:none; color:#D8CFBC; background:rgba(216,207,188,0.1); border-color:rgba(216,207,188,0.25);">🐙 GitHub ↗</a>
+              {% endif %}
+
+              {% if profile_user.linkedin_url and profile_user.linkedin_url != 'https://linkedin.com' %}
+              <a href="{{ profile_user.linkedin_url }}" target="_blank" class="tag-pill" style="font-size: 12px; font-weight:700; padding:5px 12px; text-decoration:none; color:#0077b5; background:rgba(0,119,181,0.18); border:1px solid rgba(0,119,181,0.45);">💼 LinkedIn Profile ↗</a>
+              {% else %}
               <a href="{{ profile_user.linkedin_url }}" target="_blank" class="tag-pill" style="font-size: 11px; text-decoration:none; color:#0077b5; background:rgba(0,119,181,0.1); border-color:rgba(0,119,181,0.3);">💼 LinkedIn ↗</a>
+              {% endif %}
+
               <a href="{{ profile_user.gfg_url }}" target="_blank" class="tag-pill" style="font-size: 11px; text-decoration:none; color:#2f8d46; background:rgba(47,141,70,0.1); border-color:rgba(47,141,70,0.3);">🟢 GeeksforGeeks ↗</a>
               <a href="{{ profile_user.codechef_url }}" target="_blank" class="tag-pill" style="font-size: 11px; text-decoration:none; color:#c9820f; background:rgba(201,130,15,0.1); border-color:rgba(201,130,15,0.3);">⭐ CodeChef ↗</a>
               <a href="{{ profile_user.codeforces_url }}" target="_blank" class="tag-pill" style="font-size: 11px; text-decoration:none; color:#ffa726; background:rgba(255,167,38,0.1); border-color:rgba(255,167,38,0.3);">CF Codeforces ↗</a>
