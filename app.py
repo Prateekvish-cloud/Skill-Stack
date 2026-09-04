@@ -315,32 +315,16 @@ def init_db_tables():
                     ("Prateek Vishwakarma", "vishpratee2004@gmail.com", pw_hash, "Competitive Programmer & Developer", "IMS Engineering College", "Delhi NCR, India", "Passionate competitive programmer and developer.", datetime.utcnow())
                 )
                 conn.commit()
+        except Exception as u_err:
+            print("Notice checking default user:", u_err)
 
-            # Ensure default user (ID 1) has connected coding profiles pre-seeded so profile data is never lost on restart
-            cursor.execute("SELECT COUNT(*) FROM coding_profiles WHERE user_id = 1")
-            prof_row = cursor.fetchone()
-            prof_cnt = (prof_row[0] if prof_row is not None else 0) if not isinstance(prof_row, dict) else (prof_row.get("COUNT(*)") or prof_row.get("count", 0))
-            if prof_cnt == 0:
-                default_profiles = [
-                    ("leetcode", "Prateek_vish", 15, "1500", "15 Solved"),
-                    ("geeksforgeeks", "prateekv", 30, "1650", "30 Solved"),
-                    ("codechef", "prateek_v", 10, "1420", "10 Solved"),
-                    ("github", "Prateekvish-cloud", 25, "25 Repos", "25 Repos"),
-                    ("hackerrank", "prateek_v", 5, "Bronze", "5 Solved"),
-                    ("codeforces", "prateek_v", 8, "1200", "8 Solved")
-                ]
-                for p_plat, p_user, p_solv, p_rat, p_lbl in default_profiles:
-                    try:
-                        cursor.execute(
-                            ("INSERT INTO coding_profiles (user_id, platform, username, problems_solved, rating, solved_label, connected, last_synced) VALUES (?, ?, ?, ?, ?, ?, 1, ?)" if is_sqlite else
-                             "INSERT INTO coding_profiles (user_id, platform, username, problems_solved, rating, solved_label, connected, last_synced) VALUES (%s, %s, %s, %s, %s, %s, 1, %s)"),
-                            (1, p_plat, p_user, p_solv, p_rat, p_lbl, datetime.utcnow())
-                        )
-                    except Exception as pe:
-                        print("Notice seeding profile row:", pe)
-                conn.commit()
+        # Ensure legacy demo/mock profiles are removed so un-connected users start with clean zero state
+        try:
+            cursor.execute("DELETE FROM coding_profiles WHERE username IN ('Prateek_vish', 'prateekv', 'prateek_v', 'Prateekvish-cloud') AND (problems_solved = 15 OR problems_solved = 30 OR problems_solved = 10 OR problems_solved = 8 OR problems_solved = 5 OR problems_solved = 25)")
+            cursor.execute("DELETE FROM user_solved_problems WHERE user_id = 1 AND (created_at IS NULL OR title LIKE 'Two Sum%')")
+            conn.commit()
         except Exception as seed_err:
-            print("Notice seeding default user/profiles:", seed_err)
+            print("Notice cleaning mock profiles:", seed_err)
 
     except Exception as e:
         print(f"Notice: DB initialization step: {e}")
@@ -1009,7 +993,7 @@ def public_portfolio(username):
                 rank_str = str(u_entry["rank"]).replace("#", "")
                 break
 
-    streak_val = 42 if (str(target_user_id) == "1" and connected_platforms) else (7 if connected_platforms and total_solved > 0 else 0)
+    streak_val = 1 if (connected_platforms and total_solved > 0) else 0
 
     stats = {
         "problems_solved": total_solved,
@@ -1240,7 +1224,7 @@ def dashboard():
                 break
 
     # Real streak days: based on actual connected platforms and activity
-    streak_days = 7 if (connected_platforms and total_solved > 0) else 0
+    streak_days = 1 if (connected_platforms and total_solved > 0) else 0
 
     stats = {
         "problems_solved": total_solved,
