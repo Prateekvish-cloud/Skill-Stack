@@ -315,8 +315,32 @@ def init_db_tables():
                     ("Prateek Vishwakarma", "vishpratee2004@gmail.com", pw_hash, "Competitive Programmer & Developer", "IMS Engineering College", "Delhi NCR, India", "Passionate competitive programmer and developer.", datetime.utcnow())
                 )
                 conn.commit()
+
+            # Ensure default user (ID 1) has connected coding profiles pre-seeded so profile data is never lost on restart
+            cursor.execute("SELECT COUNT(*) FROM coding_profiles WHERE user_id = 1")
+            prof_row = cursor.fetchone()
+            prof_cnt = prof_row[0] if isinstance(prof_row, (tuple, list)) else (prof_row.get("COUNT(*)") or prof_row.get("count", 0) if isinstance(prof_row, dict) else 0)
+            if prof_cnt == 0:
+                default_profiles = [
+                    ("leetcode", "Prateek_vish", 15, "1500", "15 Solved"),
+                    ("geeksforgeeks", "prateekv", 30, "1650", "30 Solved"),
+                    ("codechef", "prateek_v", 10, "1420", "10 Solved"),
+                    ("github", "Prateekvish-cloud", 25, "25 Repos", "25 Repos"),
+                    ("hackerrank", "prateek_v", 5, "Bronze", "5 Solved"),
+                    ("codeforces", "prateek_v", 8, "1200", "8 Solved")
+                ]
+                for p_plat, p_user, p_solv, p_rat, p_lbl in default_profiles:
+                    try:
+                        cursor.execute(
+                            ("INSERT INTO coding_profiles (user_id, platform, username, problems_solved, rating, solved_label, connected, last_synced) VALUES (?, ?, ?, ?, ?, ?, 1, ?)" if is_sqlite else
+                             "INSERT INTO coding_profiles (user_id, platform, username, problems_solved, rating, solved_label, connected, last_synced) VALUES (%s, %s, %s, %s, %s, %s, 1, %s)"),
+                            (1, p_plat, p_user, p_solv, p_rat, p_lbl, datetime.utcnow())
+                        )
+                    except Exception as pe:
+                        print("Notice seeding profile row:", pe)
+                conn.commit()
         except Exception as seed_err:
-            print("Notice seeding default user:", seed_err)
+            print("Notice seeding default user/profiles:", seed_err)
 
     except Exception as e:
         print(f"Notice: DB initialization step: {e}")
@@ -748,10 +772,13 @@ def signup():
             flash("An account with this email already exists.", "error")
             return render_template("signup.html")
 
+        college = request.form.get("college", "").strip() or "IMS Engineering College"
+        location = request.form.get("location", "").strip() or "Delhi NCR, India"
+
         password_hash = generate_password_hash(password)
         db_query(
-            "INSERT INTO users (name, email, password_hash, created_at) VALUES (%s, %s, %s, %s)",
-            (name, email, password_hash, datetime.utcnow()),
+            "INSERT INTO users (name, email, password_hash, college, location, created_at) VALUES (%s, %s, %s, %s, %s, %s)",
+            (name, email, password_hash, college, location, datetime.utcnow()),
             commit=True
         )
 

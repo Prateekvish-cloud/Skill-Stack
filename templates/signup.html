@@ -2,32 +2,88 @@
 {% block title %}Sign up — Skill Stack{% endblock %}
 {% block content %}
 <div class="auth-screen">
-  <div class="auth-card">
-    <div class="brand">Skill<span>Stack</span></div>
-    <h1>Create your account</h1>
-    <p class="auth-sub">One dashboard for your LeetCode, GitHub, and CodeChef progress.</p>
+  <div class="auth-card" style="max-width:440px; width:100%;">
+    <div class="brand" style="margin-bottom:10px;">Skill<span>Stack</span></div>
+    <h1 style="font-size:22px; margin:0 0 4px 0;">Create your account</h1>
+    <p class="auth-sub" style="margin-bottom:16px;">One unified dashboard for your LeetCode, GitHub, CodeChef & GFG progress.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div style="padding:10px 14px; border-radius:10px; font-size:12.5px; font-weight:600; margin-bottom:16px; text-align:left; background:{{ 'rgba(255,82,82,0.15)' if category == 'error' else 'rgba(57,211,83,0.15)' }}; border:1px solid {{ '#ff5252' if category == 'error' else '#39d353' }}; color:{{ '#ff5252' if category == 'error' else '#39d353' }};">
+            {{ msg }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
 
     <form method="POST" action="{{ url_for('signup') }}" class="auth-form">
       <div class="field">
-        <label for="name">Full name</label>
-        <input type="text" id="name" name="name" required placeholder="e.g. Veer Narayan" />
+        <label for="name">Full Name</label>
+        <input type="text" id="name" name="name" required placeholder="e.g. Veer Narayan" autocomplete="name" />
       </div>
+
       <div class="field">
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" required placeholder="you@example.com" />
+        <label for="email">Student Email</label>
+        <input type="email" id="email" name="email" required placeholder="you@example.com" autocomplete="email" inputmode="email" />
       </div>
+
+      <div class="field">
+        <label for="college">University / College</label>
+        <input type="text" id="college" name="college" list="collegeList" required placeholder="e.g. IMS Engineering College" autocomplete="off" />
+        <datalist id="collegeList">
+          <option value="IMS Engineering College"></option>
+          <option value="Indian Institute of Technology (IIT) Delhi"></option>
+          <option value="Indian Institute of Technology (IIT) Bombay"></option>
+          <option value="Delhi Technological University (DTU)"></option>
+          <option value="Netaji Subhas University of Technology (NSUT)"></option>
+          <option value="National Institute of Technology (NIT) Trichy"></option>
+          <option value="Vellore Institute of Technology (VIT)"></option>
+          <option value="SRM Institute of Science and Technology"></option>
+          <option value="KIET Group of Institutions"></option>
+          <option value="ABES Engineering College"></option>
+          <option value="Galgotias University"></option>
+          <option value="Bennett University"></option>
+          <option value="Amity University"></option>
+          <option value="BITS Pilani"></option>
+          <option value="Manipal Institute of Technology"></option>
+          <option value="Chandigarh University"></option>
+          <option value="Thapar Institute of Engineering & Tech"></option>
+        </datalist>
+      </div>
+
+      <div class="field">
+        <label for="location">Location / City</label>
+        <input type="text" id="location" name="location" list="locationList" required placeholder="e.g. Delhi NCR, India" autocomplete="off" />
+        <datalist id="locationList">
+          <option value="Delhi NCR, India"></option>
+          <option value="Ghaziabad, Uttar Pradesh, India"></option>
+          <option value="Noida, Uttar Pradesh, India"></option>
+          <option value="Bengaluru, Karnataka, India"></option>
+          <option value="Mumbai, Maharashtra, India"></option>
+          <option value="Pune, Maharashtra, India"></option>
+          <option value="Hyderabad, Telangana, India"></option>
+          <option value="Chennai, Tamil Nadu, India"></option>
+          <option value="Kolkata, West Bengal, India"></option>
+          <option value="Jaipur, Rajasthan, India"></option>
+          <option value="Lucknow, Uttar Pradesh, India"></option>
+        </datalist>
+      </div>
+
       <div class="field">
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" required placeholder="At least 6 characters" />
+        <input type="password" id="password" name="password" required placeholder="At least 6 characters" autocomplete="new-password" />
       </div>
+
       <div class="field">
-        <label for="confirm_password">Confirm password</label>
-        <input type="password" id="confirm_password" name="confirm_password" required placeholder="Re-enter password" />
+        <label for="confirm_password">Confirm Password</label>
+        <input type="password" id="confirm_password" name="confirm_password" required placeholder="Re-enter password" autocomplete="new-password" />
       </div>
-      <button type="submit" class="btn-primary">Create account</button>
+
+      <button type="submit" class="btn-primary" style="padding:14px; font-size:14px; font-weight:700; width:100%; margin-top:6px;">Create Account ↗</button>
     </form>
 
-    <p class="auth-switch">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+    <p class="auth-switch" style="margin-top:16px;">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
   </div>
 </div>
 {% endblock %}

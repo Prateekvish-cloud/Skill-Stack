@@ -62,12 +62,43 @@
 
         <div class="field">
           <label>University / College</label>
-          <input type="text" name="college" value="{{ profile.college }}" />
+          <input type="text" name="college" value="{{ profile.college }}" list="profileCollegeList" placeholder="Select or type college" />
+          <datalist id="profileCollegeList">
+            <option value="IMS Engineering College"></option>
+            <option value="Indian Institute of Technology (IIT) Delhi"></option>
+            <option value="Indian Institute of Technology (IIT) Bombay"></option>
+            <option value="Delhi Technological University (DTU)"></option>
+            <option value="Netaji Subhas University of Technology (NSUT)"></option>
+            <option value="National Institute of Technology (NIT) Trichy"></option>
+            <option value="Vellore Institute of Technology (VIT)"></option>
+            <option value="SRM Institute of Science and Technology"></option>
+            <option value="KIET Group of Institutions"></option>
+            <option value="ABES Engineering College"></option>
+            <option value="Galgotias University"></option>
+            <option value="Bennett University"></option>
+            <option value="Amity University"></option>
+            <option value="BITS Pilani"></option>
+            <option value="Manipal Institute of Technology"></option>
+            <option value="Chandigarh University"></option>
+          </datalist>
         </div>
 
         <div class="field">
-          <label>Location</label>
-          <input type="text" name="location" value="{{ profile.location }}" />
+          <label>Location / Region</label>
+          <input type="text" name="location" value="{{ profile.location }}" list="profileLocationList" placeholder="Select or type location" />
+          <datalist id="profileLocationList">
+            <option value="Delhi NCR, India"></option>
+            <option value="Ghaziabad, Uttar Pradesh, India"></option>
+            <option value="Noida, Uttar Pradesh, India"></option>
+            <option value="Bengaluru, Karnataka, India"></option>
+            <option value="Mumbai, Maharashtra, India"></option>
+            <option value="Pune, Maharashtra, India"></option>
+            <option value="Hyderabad, Telangana, India"></option>
+            <option value="Chennai, Tamil Nadu, India"></option>
+            <option value="Kolkata, West Bengal, India"></option>
+            <option value="Jaipur, Rajasthan, India"></option>
+            <option value="Lucknow, Uttar Pradesh, India"></option>
+          </datalist>
         </div>
 
         <div class="field" style="grid-column: span 2;">
