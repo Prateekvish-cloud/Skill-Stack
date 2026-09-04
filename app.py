@@ -127,41 +127,6 @@ def backup_user_state(email, name=None, password_hash=None, college=None, locati
     save_persistent_backup(backup_data)
 
 
-def restore_persistent_state_to_db():
-    """Restore all backed-up users, passwords, and connected handles to SQLite/MySQL DB."""
-    backup_data = load_persistent_backup()
-    users = backup_data.get("users", {})
-
-    for email, u_info in users.items():
-        try:
-            name = u_info.get("name") or "Prateek Vishwakarma"
-            pw_hash = u_info.get("password_hash") or generate_password_hash("password")
-            college = u_info.get("college") or "IMS Engineering College"
-            location = u_info.get("location") or "Delhi NCR, India"
-            bio = u_info.get("bio") or ""
-
-            # Check if user exists in DB
-            existing = db_query("SELECT id FROM users WHERE LOWER(email) = %s", (email.lower(),), fetchone=True)
-            if not existing:
-                db_query(
-                    "INSERT INTO users (name, email, password_hash, college, location, bio, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                    (name, email.lower(), pw_hash, college, location, bio, datetime.utcnow()),
-                    commit=True
-                )
-                existing = db_query("SELECT id FROM users WHERE LOWER(email) = %s", (email.lower(),), fetchone=True)
-
-            if existing:
-                uid = existing["id"]
-                db_query("UPDATE users SET password_hash = %s, college = %s, location = %s WHERE id = %s", (pw_hash, college, location, uid), commit=True)
-
-                # Restore handles into coding_profiles
-                handles = u_info.get("handles", {})
-                for plat, h_val in handles.items():
-                    if h_val:
-                        save_user_coding_profile(uid, plat, h_val, "Connected", 0, "Connected")
-        except Exception as err:
-            print(f"Notice restoring persistent user {email}: {err}")
-
 
 def init_db_tables():
     """Ensure database tables exist on startup for both MySQL and SQLite."""
@@ -594,7 +559,14 @@ def save_user_coding_profile(user_id, platform, username, rating, solved_count, 
 
 
 def restore_persistent_state_to_db():
-    """Restore all backed-up users, passwords, and connected handles to SQLite/MySQL DB."""
+    """Restore all backed-up users, passwords, and connected handles to SQLite/MySQL DB.
+    
+    The backup JSON is always updated by backup_user_state() whenever a user:
+    - Signs up (new password hash saved)
+    - Resets password via forgot-password (new hash saved)
+    - Connects a platform handle (handle saved)
+    So this function restores the LATEST state on every startup.
+    """
     backup_data = load_persistent_backup()
     users = backup_data.get("users", {})
 
@@ -618,7 +590,10 @@ def restore_persistent_state_to_db():
 
             if existing:
                 uid = existing["id"]
-                db_query("UPDATE users SET password_hash = %s, college = %s, location = %s WHERE id = %s", (pw_hash, college, location, uid), commit=True)
+                # Always sync the latest password hash and profile data from backup.
+                # This is safe because backup_user_state() always saves the latest hash.
+                db_query("UPDATE users SET password_hash = %s, college = %s, location = %s, bio = %s WHERE id = %s",
+                         (pw_hash, college, location, bio, uid), commit=True)
 
                 # Restore handles into coding_profiles
                 handles = u_info.get("handles", {})
@@ -627,6 +602,7 @@ def restore_persistent_state_to_db():
                         save_user_coding_profile(uid, plat, h_val, "Connected", 0, "Connected")
         except Exception as err:
             print(f"Notice restoring persistent user {email}: {err}")
+
 
 
 # Restore backed-up user accounts & handles to DB
@@ -953,21 +929,22 @@ def find_user_by_identifier(identifier):
             if users:
                 return users
 
-    # 3. Partial match fallback on email or name
-    all_db_users = db_query("SELECT * FROM users", fetchall=True) or []
-    matched = []
-    for u in all_db_users:
-        u_email = (u.get("email") or "").lower()
-        u_name = (u.get("name") or "").lower()
-        if clean_id in u_email or clean_id in u_name:
-            matched.append(u)
+    # 3. Partial match fallback on email or name (only if the search term is long enough to be meaningful)
+    if len(clean_id) >= 3:
+        all_db_users = db_query("SELECT * FROM users", fetchall=True) or []
+        matched = []
+        for u in all_db_users:
+            u_email = (u.get("email") or "").lower()
+            u_name = (u.get("name") or "").lower()
+            # Only match if the identifier matches the START of email or name to avoid false positives
+            if u_email.startswith(clean_id) or u_name.startswith(clean_id):
+                matched.append(u)
 
-    if matched:
-        return matched
+        if matched:
+            return matched
 
-    # 4. Fallback to first user in table if exists
-    first_u = db_query("SELECT * FROM users ORDER BY id ASC LIMIT 1", fetchone=True)
-    return [first_u] if first_u else []
+    # NOTE: No fallback to "first user" - that caused wrong password hash comparisons!
+    return []
 
 
 def verify_user_password(stored_hash, input_password):
@@ -1004,7 +981,8 @@ def login():
         users = find_user_by_identifier(identifier)
 
         if not users:
-            init_db_tables()
+            # Try restoring from backup and look up again
+            restore_persistent_state_to_db()
             users = find_user_by_identifier(identifier)
 
         if users:
@@ -1022,10 +1000,10 @@ def login():
                 flash(f"Welcome back, {matched_user['name']}!", "success")
                 return redirect(url_for("dashboard"))
             else:
-                flash("Incorrect password. Please verify your password or click 'Forgot password?' below to reset it.", "error")
+                flash("Incorrect password. Please check your password or click 'Forgot Password?' below to reset it.", "error")
                 return render_template("login.html")
 
-        flash("No account found with this email or username. Please click 'Create an account' below to sign up.", "error")
+        flash("No account found with this email or username. Please sign up first.", "error")
         return render_template("login.html")
 
     return render_template("login.html")
