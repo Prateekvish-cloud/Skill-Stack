@@ -249,6 +249,40 @@ body {
     padding: 40px 36px;
     width: 100%;
 
+/* Basic Login Form Helper Classes */
+.auth-card-login {
+    max-width: 420px;
+    width: 100%;
+}
+
+.auth-title {
+    font-size: 22px;
+    margin: 0 0 4px 0;
+}
+
+.auth-sub-spacing {
+    margin-bottom: 16px;
+}
+
+.auth-btn-full {
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 700;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.auth-footer-links {
+    margin-top: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hidden-form {
+    display: none;
+}
+
 /* Role Switcher Tabs (Login & Signup) */
 .role-tabs {
     display: grid;

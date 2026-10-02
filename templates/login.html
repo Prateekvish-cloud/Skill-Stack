@@ -2,17 +2,14 @@
 {% block title %}Log in — Skill Stack{% endblock %}
 
 {% block content %}
-<!-- ========================================================= -->
-<!-- LOGIN PAGE HTML CODE (Easy to Understand & Explain)       -->
-<!-- ========================================================= -->
-
+<!-- BASIC EASY HTML: LOGIN PAGE -->
 <div class="auth-screen">
-  <div class="auth-card" style="max-width:420px; width:100%;">
+  <div class="auth-card auth-card-login">
 
-    <!-- STEP 1: Website Logo / Title -->
-    <div class="brand" style="margin-bottom:12px;">Skill<span>Stack</span></div>
+    <!-- 1. Header Logo -->
+    <div class="brand">Skill<span>Stack</span></div>
     
-    <!-- STEP 2: Role Switcher Tabs (Student vs Educator) -->
+    <!-- 2. Role Buttons (Student vs Educator) -->
     <div class="role-tabs">
       <button type="button" id="tabStudentBtn" class="role-tab-btn active" onclick="switchLoginRole('student')">
         🎓 Student Login
@@ -22,86 +19,72 @@
       </button>
     </div>
 
-    <!-- STEP 3: Alert Message Banner (Shows Error/Success if needed) -->
+    <!-- 3. Alert Flash Message -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, msg in messages %}
-          <div class="flash flash-{{ category if category != 'message' else 'success' }}" style="margin-bottom:16px;">
+          <div class="flash flash-{{ category if category != 'message' else 'success' }}">
             {{ msg }}
           </div>
         {% endfor %}
       {% endif %}
     {% endwith %}
 
-    <!-- ========================================================= -->
-    <!-- FORM 1: STUDENT LOGIN FORM                                -->
-    <!-- ========================================================= -->
+    <!-- 4. Student Login Form -->
     <div id="studentLoginForm">
-      <h1 style="font-size:22px; margin:0 0 4px 0;">Student Portal</h1>
-      <p class="auth-sub" style="margin-bottom:16px;">Log in to access your coding profile, badges, and roadmap.</p>
+      <h1 class="auth-title">Student Portal</h1>
+      <p class="auth-sub auth-sub-spacing">Log in to access your coding profile, badges, and roadmap.</p>
 
       <form method="POST" action="{{ url_for('login') }}" class="auth-form">
-        <!-- Input 1: Student Username or Email -->
         <div class="field">
           <label for="email">Student Email or Username</label>
-          <input type="text" id="email" name="email" required placeholder="you@example.com or username" autocomplete="username" />
+          <input type="text" id="email" name="email" required placeholder="Enter username or email" />
         </div>
 
-        <!-- Input 2: Student Password -->
         <div class="field">
           <label for="password">Password</label>
-          <input type="password" id="password" name="password" required placeholder="••••••••" autocomplete="current-password" />
+          <input type="password" id="password" name="password" required placeholder="Enter password" />
         </div>
 
-        <!-- Submit Button for Student Login -->
-        <button type="submit" class="btn-primary" style="padding:14px; font-size:14px; font-weight:700; width:100%; margin-top:4px;">
+        <button type="submit" class="btn-primary auth-btn-full">
           Log in to Student Dashboard ↗
         </button>
       </form>
 
-      <!-- Useful Links: Signup & Forgot Password -->
-      <div class="auth-switch" style="margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
-        <span>New student? <a href="{{ url_for('signup') }}" style="font-weight:700;">Create an account</a></span>
-        <a href="{{ url_for('forgot_password') }}" style="color:var(--primary); font-weight:700; text-decoration:none;">🔑 Forgot password?</a>
+      <div class="auth-footer-links">
+        <span>New student? <a href="{{ url_for('signup') }}">Create an account</a></span>
+        <a href="{{ url_for('forgot_password') }}">Forgot password?</a>
       </div>
     </div>
 
-    <!-- ========================================================= -->
-    <!-- FORM 2: EDUCATOR / ADMIN LOGIN FORM (Hidden by default)  -->
-    <!-- ========================================================= -->
-    <div id="adminLoginForm" style="display:none;">
-      <h1 style="font-size:22px; margin:0 0 4px 0;">Educator Portal</h1>
-      <p class="auth-sub" style="margin-bottom:16px;">Secure login for institution managers & professors.</p>
+    <!-- 5. Educator Admin Login Form -->
+    <div id="adminLoginForm" class="hidden-form">
+      <h1 class="auth-title">Educator Portal</h1>
+      <p class="auth-sub auth-sub-spacing">Secure login for institution managers & professors.</p>
 
       <form method="POST" action="{{ url_for('admin_login') }}" class="auth-form">
-        <!-- Input 1: Admin Email -->
         <div class="field">
           <label for="admin_email">Admin Email Address</label>
-          <input type="email" id="admin_email" name="email" value="admin@skillstack.com" required placeholder="admin@skillstack.com" autocomplete="email" />
+          <input type="email" id="admin_email" name="email" value="admin@skillstack.com" required placeholder="admin@skillstack.com" />
         </div>
 
-        <!-- Input 2: Admin Password -->
         <div class="field">
           <label for="admin_password">Security Key / Password</label>
-          <input type="password" id="admin_password" name="password" value="admin123" required placeholder="••••••••" autocomplete="current-password" />
+          <input type="password" id="admin_password" name="password" value="admin123" required placeholder="Enter password" />
         </div>
 
-        <!-- Submit Button for Admin Login -->
-        <button type="submit" class="btn-primary" style="padding:14px; font-size:14px; font-weight:700; width:100%;">
-          🔑 Authenticate Admin Access ↗
+        <button type="submit" class="btn-primary auth-btn-full">
+          Authenticate Admin Access ↗
         </button>
       </form>
 
-      <!-- Default Admin Credentials Note -->
-      <p class="auth-switch" style="margin-top:16px;">Default Security Key: <strong>admin123</strong></p>
+      <p class="auth-switch">Default Key: <strong>admin123</strong></p>
     </div>
 
   </div>
 </div>
 
-<!-- ========================================================= -->
-<!-- JAVASCRIPT: Switches between Student & Admin forms        -->
-<!-- ========================================================= -->
+<!-- Simple JavaScript Function -->
 <script>
   function switchLoginRole(role) {
     const studentBtn = document.getElementById('tabStudentBtn');
@@ -112,17 +95,16 @@
     if (role === 'student') {
       studentBtn.classList.add('active');
       adminBtn.classList.remove('active');
-      studentForm.style.display = 'block';
-      adminForm.style.display = 'none';
+      studentForm.classList.remove('hidden-form');
+      adminForm.classList.add('hidden-form');
     } else {
       adminBtn.classList.add('active');
       studentBtn.classList.remove('active');
-      adminForm.style.display = 'block';
-      studentForm.style.display = 'none';
+      adminForm.classList.remove('hidden-form');
+      studentForm.classList.add('hidden-form');
     }
   }
 
-  // Auto-switch to Admin tab if URL has ?role=admin
   if (window.location.search.includes('role=admin')) {
     switchLoginRole('admin');
   }
