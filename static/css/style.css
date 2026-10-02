@@ -2381,8 +2381,13 @@ body {
     color: #D8CFBC;
 }
 
-/* Mobile Breakpoint Overrides */
+/* Mobile Breakpoint Overrides (Smartphones & Tablets) */
 @media (max-width: 768px) {
+    html, body {
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+    }
+
     .mobile-top-nav {
         display: flex;
     }
@@ -2399,6 +2404,21 @@ body {
         padding: 16px 14px 40px;
         width: 100%;
         max-width: 100vw;
+        box-sizing: border-box;
+    }
+
+    /* Grids collapse to single column on mobile */
+    .dash-body-grid,
+    .dash-panels,
+    .platform-grid,
+    .platform-detail-grid,
+    .badge-grid,
+    .project-grid,
+    .feature-cards-grid,
+    .stat-preview-grid,
+    .stat-preview-grid.two-col {
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
     }
 
     .auth-screen {
@@ -2414,10 +2434,19 @@ body {
         max-width: 100%;
     }
 
-    /* Prevent iOS Safari from zooming when focusing text/email/password inputs */
+    /* Prevent iOS Safari from auto-zooming inputs on focus */
     .field input, .modal-input, select, textarea {
         font-size: 16px !important;
         min-height: 44px;
+    }
+
+    /* Touch-friendly buttons and touch targets */
+    .btn-primary, .btn-secondary, .btn-ghost, .platform-connect-btn, .mobile-nav-btn {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
     }
 
     .stat-grid, .dash-stats-grid {
@@ -2430,12 +2459,39 @@ body {
     }
 
     .land-hero {
-        padding: 40px 16px 30px !important;
+        padding: 36px 16px 24px !important;
+    }
+
+    .land-hero h1 {
+        font-size: 28px !important;
     }
 
     .land-cta-row {
         flex-direction: column;
         gap: 10px;
+        width: 100%;
+    }
+
+    .hero-search-box {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .search-input-wrap {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .search-input-wrap input {
+        width: 100%;
+        padding: 8px 4px;
+    }
+
+    .btn-search-demo {
+        width: 100%;
+        text-align: center;
     }
 
     .table-responsive {
