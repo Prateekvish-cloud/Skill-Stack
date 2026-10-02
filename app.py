@@ -3232,9 +3232,16 @@ def api_streak_calendar():
     # 4. GFG - we don't have submission dates from GFG public API; skip
     # 5. CodeChef - we don't have daily dates from current scraper; skip
 
-    # Build streak count from daily_counts
+    # Build active streak count
+    # If today has activity, start from today.
+    # If today has 0 activity yet, check yesterday so active streak isn't lost mid-day.
     streak = 0
     check = today
+    if daily_counts.get(today.strftime("%Y-%m-%d"), 0) == 0:
+        yesterday = today - timedelta(days=1)
+        if daily_counts.get(yesterday.strftime("%Y-%m-%d"), 0) > 0:
+            check = yesterday
+
     while True:
         k = check.strftime("%Y-%m-%d")
         if daily_counts.get(k, 0) > 0:
