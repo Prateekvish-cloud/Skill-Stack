@@ -1,20 +1,20 @@
 :root {
-    --bg: #F7F5EB;
-    --bg-2: #EFECE0;
+    --bg: #FAF8F5;
+    --bg-2: #F3EFEA;
     --panel: #FFFFFF;
-    --panel-light: #FAF9F3;
+    --panel-light: #F7F5F0;
     --panel-alt: #FFFFFF;
-    --panel-alt-text: #141414;
-    --panel-alt-muted: #5C5B52;
-    --border: rgba(0, 0, 0, 0.1);
-    --border-alt: rgba(0, 0, 0, 0.16);
-    --ink: #141414;
-    --muted: #5C5B52;
+    --panel-alt-text: #121212;
+    --panel-alt-muted: #525252;
+    --border: rgba(0, 0, 0, 0.08);
+    --border-alt: rgba(0, 0, 0, 0.15);
+    --ink: #121212;
+    --muted: #525252;
     --primary: #C8F500;
     --primary-dark: #9ECC00;
     --primary-glow: rgba(200, 245, 0, 0.4);
     --accent: #2D4B00;
-    --accent-2: #141414;
+    --accent-2: #121212;
     --accent-blue: #C8F500;
     --danger: #d32f2f;
     --font-display: "Space Grotesk", sans-serif;
@@ -54,7 +54,7 @@ body {
 
 body {
     margin: 0;
-    background: #F7F5EB;
+    background: var(--bg);
     color: var(--ink);
     font-family: var(--font-body);
     position: relative;
@@ -135,7 +135,7 @@ body {
     transform: translate(-50%, -50%);
     width: 720px;
     height: 720px;
-    background: radial-gradient(circle, rgba(200, 245, 0, 0.15) 0%, rgba(247, 245, 235, 0.4) 50%, transparent 75%);
+    background: radial-gradient(circle, rgba(200, 245, 0, 0.12) 0%, rgba(250, 248, 245, 0.4) 50%, transparent 75%);
     border-radius: 50%;
     filter: blur(40px);
     pointer-events: none;
@@ -155,22 +155,22 @@ body {
 /* Bottom Layer (Clean White Base) */
 .stack-layer-1 {
     transform: translate(-50%, calc(-50% + 120px)) rotate(45deg) scaleY(0.55);
-    background: linear-gradient(135deg, #FFFFFF 0%, #EFECE0 100%);
+    background: linear-gradient(135deg, #FFFFFF 0%, #F3EFEA 100%);
     border: 1.5px solid rgba(0, 0, 0, 0.08);
     box-shadow: 
-        0 18px 0 #E2DDD0,
-        0 35px 75px rgba(0, 0, 0, 0.06),
+        0 18px 0 #E4DDD3,
+        0 35px 75px rgba(0, 0, 0, 0.05),
         inset 0 2px 3px rgba(255, 255, 255, 0.9);
 }
 
-/* Middle Layer (Soft Beige Plate) */
+/* Middle Layer (Soft Cream Plate) */
 .stack-layer-2 {
     transform: translate(-50%, -50%) rotate(45deg) scaleY(0.55);
-    background: linear-gradient(135deg, #FAF9F3 0%, #E5E0CE 100%);
+    background: linear-gradient(135deg, #FAF8F5 0%, #EAE4D8 100%);
     border: 1.5px solid rgba(0, 0, 0, 0.08);
     box-shadow: 
-        0 18px 0 #D5CFBD,
-        0 30px 65px rgba(0, 0, 0, 0.08),
+        0 18px 0 #D8D0C2,
+        0 30px 65px rgba(0, 0, 0, 0.07),
         inset 0 2.5px 4px rgba(255, 255, 255, 0.8);
 }
 
@@ -459,7 +459,7 @@ body {
 .sidebar {
     width: 250px;
     flex-shrink: 0;
-    background: #FAF9F3;
+    background: #FAF8F5;
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
     border-right: 1px solid var(--border);
@@ -919,7 +919,7 @@ body {
     position: sticky;
     top: 0;
     z-index: 20;
-    background: rgba(245, 245, 220, 0.95);
+    background: rgba(250, 248, 245, 0.95);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
 }
