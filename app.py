@@ -2060,13 +2060,23 @@ def analytics():
     cc_solved = next((p['problems_solved'] for p in connected if p['key'] == 'codechef'), 0)
     lc_solved = next((p['problems_solved'] for p in connected if p['key'] == 'leetcode'), 0)
     hr_solved = next((p['problems_solved'] for p in connected if p['key'] in ['hackerrank','hr']), 0)
+    cf_solved = next((p['problems_solved'] for p in connected if p['key'] in ['codeforces','cf']), 0)
 
-    peak_solved = max([gfg_solved, cc_solved, lc_solved, hr_solved, 0])
+    plat_counts = {
+        "GFG": gfg_solved,
+        "CodeChef": cc_solved,
+        "LeetCode": lc_solved,
+        "HackerRank": hr_solved,
+        "Codeforces": cf_solved
+    }
+    peak_platform = max(plat_counts, key=plat_counts.get) if any(plat_counts.values()) else "GFG"
+    peak_solved = plat_counts.get(peak_platform, 0)
 
     contests = []
 
     for p in connected:
         solved = p.get("problems_solved", 0)
+        p_rating = p.get("rating")
         k = p["key"]
         if k == "leetcode":
             plat_label = "⚡ LeetCode"
@@ -2075,19 +2085,23 @@ def analytics():
         elif k in ["geeksforgeeks", "gfg"]:
             plat_label = "🟢 GFG"
             c_name = "GeeksforGeeks Submissions & Score Sync"
-            rank_str = f"{solved} Solved (277 pts)"
+            rank_str = p_rating if (p_rating and "Not" not in str(p_rating)) else f"{solved} Solved"
         elif k == "codechef":
             plat_label = "⭐ CodeChef"
             c_name = "CodeChef Recent Submissions Sync"
-            rank_str = f"{solved} Solved"
+            rank_str = p_rating if (p_rating and "Not" not in str(p_rating)) else f"{solved} Solved"
         elif k in ["hackerrank", "hr"]:
             plat_label = "🟩 HackerRank"
             c_name = "HackerRank Recent Challenges Sync"
-            rank_str = f"{solved} Solved (360 pts)"
-        else:
+            rank_str = p_rating if (p_rating and "Not" not in str(p_rating)) else f"{solved} Solved"
+        elif k in ["codeforces", "cf"]:
             plat_label = "🔴 Codeforces"
             c_name = "Codeforces Submissions Sync"
-            rank_str = "0 Solved"
+            rank_str = p_rating if (p_rating and "Not" not in str(p_rating)) else f"{solved} Solved"
+        else:
+            plat_label = f"🌐 {p.get('name', k.upper())}"
+            c_name = f"{p.get('name', k.upper())} Submissions Sync"
+            rank_str = f"{solved} Solved"
 
         if solved > 0:
             contests.append({
@@ -2106,11 +2120,27 @@ def analytics():
         "gfg": [int(gfg_solved * 0.2), int(gfg_solved * 0.4), int(gfg_solved * 0.65), int(gfg_solved * 0.85), gfg_solved],
         "cc": [int(cc_solved * 0.2), int(cc_solved * 0.45), int(cc_solved * 0.65), int(cc_solved * 0.85), cc_solved],
         "lc": [int(lc_solved * 0.2), int(lc_solved * 0.4), int(lc_solved * 0.65), int(lc_solved * 0.85), lc_solved],
-        "hr": [int(hr_solved * 0.2), int(hr_solved * 0.4), int(hr_solved * 0.65), int(hr_solved * 0.85), hr_solved]
+        "hr": [int(hr_solved * 0.2), int(hr_solved * 0.4), int(hr_solved * 0.65), int(hr_solved * 0.85), hr_solved],
+        "cf": [int(cf_solved * 0.2), int(cf_solved * 0.4), int(cf_solved * 0.65), int(cf_solved * 0.85), cf_solved],
+        "counts": {
+            "gfg": gfg_solved,
+            "cc": cc_solved,
+            "lc": lc_solved,
+            "hr": hr_solved,
+            "cf": cf_solved
+        }
     }
 
-    return render_template("analytics.html", user_name=session.get("user_name"), contests=contests, peak_solved=peak_solved, total_solved=total_solved, chart_datasets=chart_datasets, active_page="analytics")
-
+    return render_template(
+        "analytics.html",
+        user_name=session.get("user_name"),
+        contests=contests,
+        peak_solved=peak_solved,
+        peak_platform=peak_platform,
+        total_solved=total_solved,
+        chart_datasets=chart_datasets,
+        active_page="analytics"
+    )
 
 
 @app.route("/admin-login", methods=["GET", "POST"])
