@@ -58,7 +58,7 @@ MYSQL_DB=skill_stack
 python app.py
 ```
 
-Open **http://localhost:5000** — you'll land on the landing page. Click
+Open **https://skill-stack-wmo8.onrender.com/** — you'll land on the landing page. Click
 "Create an account" to sign up, then log in to see the dashboard.
 
 ## What's here vs. what's next
