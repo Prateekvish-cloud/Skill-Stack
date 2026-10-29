@@ -12,19 +12,20 @@
 
     <!-- Platform Filter Tabs & Performance Summary Cards -->
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:20px; margin-bottom:16px;">
-      <div style="display:flex; gap:8px;" id="platformTabs">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;" id="platformTabs">
         <button class="btn-primary plat-tab active" data-plat="all" onclick="filterAnalytics('all', this)">🌐 All Platforms</button>
         <button class="btn-secondary plat-tab" data-plat="gfg" onclick="filterAnalytics('gfg', this)" style="color:#2f8d46;">🟢 GeeksforGeeks</button>
         <button class="btn-secondary plat-tab" data-plat="codechef" onclick="filterAnalytics('codechef', this)" style="color:#c9820f;">⭐ CodeChef</button>
         <button class="btn-secondary plat-tab" data-plat="leetcode" onclick="filterAnalytics('leetcode', this)" style="color:#ffa726;">⚡ LeetCode</button>
         <button class="btn-secondary plat-tab" data-plat="hackerrank" onclick="filterAnalytics('hackerrank', this)" style="color:#2ec866;">🟩 HackerRank</button>
+        <button class="btn-secondary plat-tab" data-plat="codeforces" onclick="filterAnalytics('codeforces', this)" style="color:#e0505a;">🔴 Codeforces</button>
       </div>
 
       <div style="display:flex; gap:12px;">
         <div class="stat-box-sm" style="background:rgba(35,36,28,0.6); padding:8px 14px; border-radius:10px; border:1px solid var(--border);">
           <span style="font-size:11px; color:var(--muted); text-transform:uppercase;">Top Platform Solved</span>
           <div style="font-weight:700; font-size:16px; color:#39d353;" id="statPeak">
-            {{ peak_solved }} <small style="font-size:11px; color:#2f8d46;">(GFG)</small>
+            {{ peak_solved }} <small style="font-size:11px; color:#39d353;">({{ peak_platform }})</small>
           </div>
         </div>
         <div class="stat-box-sm" style="background:rgba(35,36,28,0.6); padding:8px 14px; border-radius:10px; border:1px solid var(--border);">
@@ -61,7 +62,7 @@
       <div id="contestList">
         {% for c in contests %}
         <div class="lb-row contest-row" data-plat="{{ c.platform }}" style="grid-template-columns: 140px 1.8fr 120px 150px 120px;">
-          <span class="plat-badge-pill" style="font-size:11px; font-weight:600; width:fit-content; background:{{ 'rgba(255,167,38,0.15)' if c.platform == 'leetcode' else ('rgba(201,130,15,0.15)' if c.platform == 'codechef' else ('rgba(47,141,70,0.15)' if c.platform in ['gfg','geeksforgeeks'] else 'rgba(46,200,102,0.15)')) }}; color:{{ '#ffa726' if c.platform == 'leetcode' else ('#c9820f' if c.platform == 'codechef' else ('#2f8d46' if c.platform in ['gfg','geeksforgeeks'] else '#2ec866')) }};">
+          <span class="plat-badge-pill" style="font-size:11px; font-weight:600; width:fit-content; background:{{ 'rgba(255,167,38,0.15)' if c.platform == 'leetcode' else ('rgba(201,130,15,0.15)' if c.platform == 'codechef' else ('rgba(47,141,70,0.15)' if c.platform in ['gfg','geeksforgeeks'] else ('rgba(224,80,90,0.15)' if c.platform in ['cf','codeforces'] else 'rgba(46,200,102,0.15)'))) }}; color:{{ '#ffa726' if c.platform == 'leetcode' else ('#c9820f' if c.platform == 'codechef' else ('#2f8d46' if c.platform in ['gfg','geeksforgeeks'] else ('#e0505a' if c.platform in ['cf','codeforces'] else '#2ec866'))) }};">
             {{ c.plat_label }}
           </span>
           <span style="font-weight:600; color:var(--ink);">{{ c.name }}</span>
@@ -71,7 +72,7 @@
         </div>
         {% else %}
         <div style="padding:24px; text-align:center; color:var(--muted); font-size:13px;">
-          No profile sync recorded yet. Connect your LeetCode, GeeksforGeeks, CodeChef, or HackerRank account to track solved performance.
+          No profile sync recorded yet. Connect your LeetCode, GeeksforGeeks, CodeChef, HackerRank, or Codeforces account to track solved performance.
         </div>
         {% endfor %}
       </div>
@@ -83,11 +84,18 @@
 {% block scripts %}
 <script>
   const chartDs = {{ chart_datasets | tojson }};
+  const counts = chartDs.counts || {
+    gfg: chartDs.gfg ? chartDs.gfg[4] : 0,
+    cc: chartDs.cc ? chartDs.cc[4] : 0,
+    lc: chartDs.lc ? chartDs.lc[4] : 0,
+    hr: chartDs.hr ? chartDs.hr[4] : 0,
+    cf: chartDs.cf ? chartDs.cf[4] : 0
+  };
 
   const fullDatasets = {
     'gfg': {
-      label: 'GeeksforGeeks Solved (81)',
-      data: chartDs.gfg,
+      label: `GeeksforGeeks Solved (${counts.gfg})`,
+      data: chartDs.gfg || [0,0,0,0,0],
       borderColor: '#2f8d46',
       backgroundColor: 'rgba(47, 141, 70, 0.15)',
       fill: true,
@@ -95,8 +103,8 @@
       borderWidth: 2.5
     },
     'codechef': {
-      label: 'CodeChef Solved (36)',
-      data: chartDs.cc,
+      label: `CodeChef Solved (${counts.cc})`,
+      data: chartDs.cc || [0,0,0,0,0],
       borderColor: '#c9820f',
       backgroundColor: 'rgba(201, 130, 15, 0.15)',
       fill: true,
@@ -104,8 +112,8 @@
       borderWidth: 2.5
     },
     'leetcode': {
-      label: 'LeetCode Solved (27)',
-      data: chartDs.lc,
+      label: `LeetCode Solved (${counts.lc})`,
+      data: chartDs.lc || [0,0,0,0,0],
       borderColor: '#ffa726',
       backgroundColor: 'rgba(255, 167, 38, 0.15)',
       fill: true,
@@ -113,22 +121,37 @@
       borderWidth: 2.5
     },
     'hackerrank': {
-      label: 'HackerRank Solved (26)',
-      data: chartDs.hr,
+      label: `HackerRank Solved (${counts.hr})`,
+      data: chartDs.hr || [0,0,0,0,0],
       borderColor: '#2ec866',
       backgroundColor: 'rgba(46, 200, 102, 0.15)',
+      fill: true,
+      tension: 0.35,
+      borderWidth: 2.5
+    },
+    'codeforces': {
+      label: `Codeforces Solved (${counts.cf})`,
+      data: chartDs.cf || [0,0,0,0,0],
+      borderColor: '#e0505a',
+      backgroundColor: 'rgba(224, 80, 90, 0.15)',
       fill: true,
       tension: 0.35,
       borderWidth: 2.5
     }
   };
 
+  const activeKeys = ['gfg', 'codechef', 'leetcode', 'hackerrank', 'codeforces'].filter(k => {
+    const cVal = counts[k === 'codechef' ? 'cc' : (k === 'codeforces' ? 'cf' : (k === 'hackerrank' ? 'hr' : (k === 'leetcode' ? 'lc' : 'gfg')))];
+    return cVal > 0;
+  });
+  const initialDatasets = activeKeys.length > 0 ? activeKeys.map(k => fullDatasets[k]) : Object.values(fullDatasets);
+
   const chartCtx = document.getElementById('analyticsChart').getContext('2d');
   const analyticsChart = new Chart(chartCtx, {
     type: 'line',
     data: {
       labels: chartDs.labels,
-      datasets: [fullDatasets.gfg, fullDatasets.codechef, fullDatasets.leetcode, fullDatasets.hackerrank]
+      datasets: initialDatasets
     },
     options: {
       responsive: true,
@@ -163,15 +186,17 @@
 
     const rows = document.querySelectorAll('.contest-row');
     rows.forEach(r => {
-      if (plat === 'all' || r.getAttribute('data-plat') === plat) {
-        r.style.display = 'grid';
-      } else {
-        r.style.display = 'none';
-      }
+      const rowPlat = r.getAttribute('data-plat');
+      const isMatch = (plat === 'all') ||
+                      (plat === rowPlat) ||
+                      (plat === 'codeforces' && (rowPlat === 'cf' || rowPlat === 'codeforces')) ||
+                      (plat === 'gfg' && (rowPlat === 'gfg' || rowPlat === 'geeksforgeeks')) ||
+                      (plat === 'hackerrank' && (rowPlat === 'hr' || rowPlat === 'hackerrank'));
+      r.style.display = isMatch ? 'grid' : 'none';
     });
 
     if (plat === 'all') {
-      analyticsChart.data.datasets = [fullDatasets.gfg, fullDatasets.codechef, fullDatasets.leetcode, fullDatasets.hackerrank];
+      analyticsChart.data.datasets = initialDatasets;
     } else if (fullDatasets[plat]) {
       analyticsChart.data.datasets = [fullDatasets[plat]];
     }
