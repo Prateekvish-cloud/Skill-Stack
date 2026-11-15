@@ -5,12 +5,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Skill Stack{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=6" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=25" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <script>
         (function() {
-            var savedTheme = localStorage.getItem('skillstack_theme') || 'gold';
+            var savedTheme = localStorage.getItem('skillstack_theme');
+            if (!savedTheme || savedTheme === 'gold') {
+                savedTheme = 'violet';
+                localStorage.setItem('skillstack_theme', 'violet');
+            }
             document.documentElement.setAttribute('data-theme', savedTheme);
         })();
         function setTheme(theme) {
@@ -34,27 +39,27 @@
     <style>
         .flash-stack {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 24px;
+            right: 24px;
             z-index: 999999;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            max-width: 380px;
+            max-width: 400px;
             pointer-events: none;
         }
         .flash {
             pointer-events: auto;
-            padding: 12px 18px;
-            border-radius: 12px;
-            font-size: 13px;
+            padding: 14px 20px;
+            border-radius: 14px;
+            font-size: 13.5px;
             font-weight: 600;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(10px);
+            gap: 14px;
+            box-shadow: 0 10px 25px rgba(23, 24, 39, 0.08);
+            backdrop-filter: blur(12px);
             transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             opacity: 1;
             transform: translateY(0);
@@ -65,23 +70,23 @@
             transform: translateY(-20px) scale(0.95) !important;
         }
         .flash-success {
-            background: rgba(25, 45, 30, 0.95);
-            border: 1px solid rgba(57, 211, 83, 0.5);
-            color: #39d353;
+            background: #ECFDF5;
+            border: 1px solid #A7F3D0;
+            color: #065F46;
         }
         .flash-error {
-            background: rgba(45, 25, 25, 0.95);
-            border: 1px solid rgba(255, 82, 82, 0.5);
-            color: #ff5252;
+            background: #FEF2F2;
+            border: 1px solid #FECACA;
+            color: #991B1B;
         }
         .flash-info, .flash-message {
-            background: rgba(35, 36, 28, 0.95);
-            border: 1px solid rgba(216, 207, 188, 0.3);
-            color: var(--ink);
+            background: #ECEBFE;
+            border: 1px solid #D6D2FD;
+            color: #4338CA;
         }
         .flash-close {
             opacity: 0.7;
-            font-size: 16px;
+            font-size: 18px;
             line-height: 1;
         }
         .flash-close:hover { opacity: 1; }

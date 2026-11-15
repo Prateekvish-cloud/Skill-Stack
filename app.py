@@ -78,7 +78,7 @@ def get_db_connection():
 BACKUP_FILE = os.path.join(os.path.dirname(__file__), "user_credentials_backup.json")
 
 def load_persistent_backup():
-    """Load JSON backup from disk or return default data structure."""
+    """Load JSON backup from disk or return default clean data structure."""
     if os.path.exists(BACKUP_FILE):
         try:
             with open(BACKUP_FILE, "r", encoding="utf-8") as f:
@@ -88,27 +88,7 @@ def load_persistent_backup():
         except Exception as e:
             print("Notice reading persistent backup:", e)
     return {
-        "users": {
-            "vishpratee2004@gmail.com": {
-                "name": "Prateek Vishwakarma",
-                "password_hash": "scrypt:32768:8:1$iNQjdGzmAFr7njig$4aeff2c150b92afc1451109f005504bf1f746ad92dc160cac02ac206d6e9496faa1ddf6c58ad15e0412706e1d805e1fa0d6d810a8932325fe558e342952e5b4f",
-                "headline": "Competitive Programmer & Developer",
-                "college": "IMS Engineering College",
-                "location": "Delhi NCR, India",
-                "bio": "Passionate problem solver & full stack developer.",
-                "github_url": "https://github.com/Prateekvish-cloud",
-                "linkedin_url": "https://www.linkedin.com/in/prateek-pkv/",
-                "role": "student",
-                "handles": {
-                    "leetcode": "Prateek_vish",
-                    "github": "Prateekvish-cloud",
-                    "geeksforgeeks": "vishpratdzsq",
-                    "codechef": "crash_chef_57",
-                    "codeforces": "Prateek24_",
-                    "hackerrank": "vishpratee2004"
-                }
-            }
-        }
+        "users": {}
     }
 
 
@@ -121,7 +101,83 @@ def save_persistent_backup(backup_data):
         print("Notice writing persistent backup:", e)
 
 
-def backup_user_state(email, name=None, password_hash=None, college=None, location=None, bio=None, handle_dict=None):
+def dump_full_database_to_backup():
+    """
+    Export all users, their profiles, handles, projects, announcements, and assignments
+    from DB into the persistent JSON backup so nothing is lost across restarts.
+    """
+    try:
+        db_users = db_query("SELECT * FROM users", fetchall=True) or []
+        if not db_users:
+            return
+
+        backup_data = load_persistent_backup()
+        users_dict = backup_data.setdefault("users", {})
+
+        for u in db_users:
+            email_clean = (u.get("email") or "").strip().lower()
+            if not email_clean:
+                continue
+
+            u_id = u["id"]
+            profs = db_query("SELECT * FROM coding_profiles WHERE user_id = %s", (u_id,), fetchall=True) or []
+            handles = {}
+            platform_stats = {}
+            for p in profs:
+                plat = (p.get("platform") or "").lower()
+                handles[plat] = p.get("username") or ""
+                platform_stats[plat] = {
+                    "solved": p.get("problems_solved", 0),
+                    "rating": p.get("rating", "Connected"),
+                    "label": p.get("solved_label", "Connected")
+                }
+
+            projs = db_query("SELECT title, description, tags, repo_url, demo_url, stars, forks FROM projects WHERE user_id = %s", (u_id,), fetchall=True) or []
+            cleaned_projs = []
+            for pr in projs:
+                cleaned_projs.append({
+                    "title": pr.get("title") or "",
+                    "description": pr.get("description") or "",
+                    "tags": pr.get("tags") or "",
+                    "repo_url": pr.get("repo_url") or "",
+                    "demo_url": pr.get("demo_url") or "",
+                    "stars": pr.get("stars", 1),
+                    "forks": pr.get("forks", 0)
+                })
+
+            existing_user_backup = users_dict.get(email_clean, {})
+            # Keep existing password hash if DB hash is temporarily blank
+            pw_to_save = u.get("password_hash") or existing_user_backup.get("password_hash") or ""
+
+            users_dict[email_clean] = {
+                "name": u.get("name") or "",
+                "password_hash": pw_to_save,
+                "headline": u.get("headline") or "Competitive Programmer & Developer",
+                "college": u.get("college") or "IMS Engineering College",
+                "location": u.get("location") or "Delhi NCR, India",
+                "bio": u.get("bio") or "",
+                "github_url": u.get("github_url") or "",
+                "linkedin_url": u.get("linkedin_url") or "",
+                "role": u.get("role") or "student",
+                "handles": handles,
+                "platform_stats": platform_stats,
+                "projects": cleaned_projs
+            }
+
+        ann_rows = db_query("SELECT title, content, priority, author, created_at FROM announcements", fetchall=True) or []
+        if ann_rows:
+            backup_data["announcements"] = [dict(a) for a in ann_rows]
+
+        asg_rows = db_query("SELECT title, description, dsa_topic, deadline, problems_json FROM assignments", fetchall=True) or []
+        if asg_rows:
+            backup_data["assignments"] = [dict(a) for a in asg_rows]
+
+        save_persistent_backup(backup_data)
+    except Exception as e:
+        print("Notice dumping database to persistent backup:", e)
+
+
+def backup_user_state(email, name=None, password_hash=None, college=None, location=None, bio=None, handle_dict=None, platform_stats=None):
     """Update or add user state in persistent JSON backup."""
     if not email:
         return
@@ -135,7 +191,8 @@ def backup_user_state(email, name=None, password_hash=None, college=None, locati
         "college": college or "IMS Engineering College",
         "location": location or "Delhi NCR, India",
         "bio": bio or "Passionate competitive programmer and developer.",
-        "handles": {}
+        "handles": {},
+        "platform_stats": {}
     })
 
     if name:
@@ -150,6 +207,8 @@ def backup_user_state(email, name=None, password_hash=None, college=None, locati
         u["bio"] = bio
     if handle_dict and isinstance(handle_dict, dict):
         u.setdefault("handles", {}).update(handle_dict)
+    if platform_stats and isinstance(platform_stats, dict):
+        u.setdefault("platform_stats", {}).update(platform_stats)
 
     save_persistent_backup(backup_data)
 
@@ -271,6 +330,19 @@ def init_db_tables():
                     sent_at TIMESTAMP
                 );
             """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_solved_problems (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    problem_id TEXT,
+                    title TEXT NOT NULL,
+                    num TEXT,
+                    topic TEXT,
+                    diff TEXT,
+                    platform TEXT,
+                    created_at TIMESTAMP
+                );
+            """)
         else:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
@@ -382,6 +454,19 @@ def init_db_tables():
                     sent_at DATETIME
                 );
             """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_solved_problems (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    problem_id VARCHAR(255),
+                    title VARCHAR(255) NOT NULL,
+                    num VARCHAR(100),
+                    topic VARCHAR(100),
+                    diff VARCHAR(50),
+                    platform VARCHAR(50),
+                    created_at DATETIME
+                );
+            """)
 
         conn.commit()
 
@@ -409,21 +494,8 @@ def init_db_tables():
             except Exception:
                 pass
 
-        # Migration helper: ensure default user exists if users table is empty
-        try:
-            cursor.execute("SELECT COUNT(*) FROM users")
-            cnt_row = cursor.fetchone()
-            user_cnt = (cnt_row[0] if cnt_row is not None else 0) if not isinstance(cnt_row, dict) else (cnt_row.get("COUNT(*)") or cnt_row.get("count", 0))
-            if user_cnt == 0:
-                pw_hash = generate_password_hash("password")
-                cursor.execute(
-                    ("INSERT INTO users (name, email, password_hash, headline, college, location, bio, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)" if is_sqlite else
-                     "INSERT INTO users (name, email, password_hash, headline, college, location, bio, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"),
-                    ("Prateek Vishwakarma", "vishpratee2004@gmail.com", pw_hash, "Competitive Programmer & Developer", "IMS Engineering College", "Delhi NCR, India", "Passionate competitive programmer and developer.", datetime.utcnow())
-                )
-                conn.commit()
-        except Exception as u_err:
-            print("Notice checking default user:", u_err)
+        # Ensure schema updates are committed
+        conn.commit()
 
     except Exception as e:
         print(f"Notice: DB initialization step: {e}")
@@ -604,23 +676,42 @@ def get_user_sync_logs(user_id):
 
 
 def save_user_coding_profile(user_id, platform, username, rating, solved_count, solved_label):
-    """UPSERT a user's coding profile into MySQL or SQLite."""
+    """UPSERT a user's coding profile into MySQL, Postgres, or SQLite while preserving existing solved stats."""
+    plat_clean = (platform or "").lower()
+    existing = db_query("SELECT problems_solved, rating, solved_label FROM coding_profiles WHERE user_id = %s AND LOWER(platform) = %s", (user_id, plat_clean), fetchone=True)
+    if existing:
+        ex_solved = existing.get("problems_solved") or 0
+        ex_rating = existing.get("rating") or ""
+        ex_label = existing.get("solved_label") or ""
+        if (solved_count is None or solved_count == 0) and ex_solved > 0:
+            solved_count = ex_solved
+        if (not rating or rating == "Connected") and ex_rating and ex_rating != "Connected":
+            rating = ex_rating
+        if (not solved_label or solved_label == "Connected") and ex_label and ex_label != "Connected":
+            solved_label = ex_label
+
     query = """
         INSERT INTO coding_profiles (user_id, platform, username, problems_solved, rating, solved_label, connected, last_synced)
         VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s)
         ON DUPLICATE KEY UPDATE username = VALUES(username), problems_solved = VALUES(problems_solved), rating = VALUES(rating), solved_label = VALUES(solved_label), connected = TRUE, last_synced = VALUES(last_synced)
     """
-    db_query(query, (user_id, platform.lower(), username, solved_count, rating, solved_label, datetime.utcnow()), commit=True)
+    db_query(query, (user_id, plat_clean, username, solved_count or 0, rating or "Connected", solved_label or "Connected", datetime.utcnow()), commit=True)
+
+    # Sync to backup state as well
+    u_row = db_query("SELECT email FROM users WHERE id = %s", (user_id,), fetchone=True)
+    if u_row and u_row.get("email"):
+        backup_user_state(
+            u_row["email"],
+            handle_dict={plat_clean: username},
+            platform_stats={plat_clean: {"solved": solved_count or 0, "rating": rating or "Connected", "label": solved_label or "Connected"}}
+        )
 
 
 def restore_persistent_state_to_db():
-    """Restore all backed-up users, passwords, and connected handles to SQLite/MySQL DB.
+    """Restore all backed-up users, passwords, connected handles, projects, and assignments to SQLite/MySQL DB.
     
-    The backup JSON is always updated by backup_user_state() whenever a user:
-    - Signs up (new password hash saved)
-    - Resets password via forgot-password (new hash saved)
-    - Connects a platform handle (handle saved)
-    So this function restores the LATEST state on every startup.
+    Ensures that existing databases are not corrupted or overwritten with stale data,
+    while fully recovering user accounts and data across server restarts and restarts.
     """
     backup_data = load_persistent_backup()
     users = backup_data.get("users", {})
@@ -628,35 +719,95 @@ def restore_persistent_state_to_db():
     for email, u_info in users.items():
         try:
             name = u_info.get("name") or "Prateek Vishwakarma"
-            pw_hash = u_info.get("password_hash") or generate_password_hash("password")
+            pw_hash = u_info.get("password_hash") or ""
             college = u_info.get("college") or "IMS Engineering College"
             location = u_info.get("location") or "Delhi NCR, India"
             bio = u_info.get("bio") or ""
+            headline = u_info.get("headline") or "Competitive Programmer & Developer"
+            github_url = u_info.get("github_url") or ""
+            linkedin_url = u_info.get("linkedin_url") or ""
+            role = u_info.get("role") or "student"
 
             # Check if user exists in DB
-            existing = db_query("SELECT id FROM users WHERE LOWER(email) = %s", (email.lower(),), fetchone=True)
+            existing = db_query("SELECT id, name, password_hash, college, location, bio, headline, github_url, linkedin_url FROM users WHERE LOWER(email) = %s", (email.lower(),), fetchone=True)
             if not existing:
                 db_query(
-                    "INSERT INTO users (name, email, password_hash, college, location, bio, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                    (name, email.lower(), pw_hash, college, location, bio, datetime.utcnow()),
+                    "INSERT INTO users (name, email, password_hash, headline, college, location, bio, github_url, linkedin_url, role, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    (name, email.lower(), pw_hash, headline, college, location, bio, github_url, linkedin_url, role, datetime.utcnow()),
                     commit=True
                 )
-                existing = db_query("SELECT id FROM users WHERE LOWER(email) = %s", (email.lower(),), fetchone=True)
+                existing = db_query("SELECT id, name, password_hash, college, location, bio, headline, github_url, linkedin_url FROM users WHERE LOWER(email) = %s", (email.lower(),), fetchone=True)
 
             if existing:
                 uid = existing["id"]
-                # Always sync the latest password hash and profile data from backup.
-                # This is safe because backup_user_state() always saves the latest hash.
-                db_query("UPDATE users SET password_hash = %s, college = %s, location = %s, bio = %s WHERE id = %s",
-                         (pw_hash, college, location, bio, uid), commit=True)
+                # Only backfill empty fields, never overwrite user changes
+                updates = []
+                params = []
+                if pw_hash and not existing.get("password_hash"):
+                    updates.append("password_hash = %s")
+                    params.append(pw_hash)
+                if college and not existing.get("college"):
+                    updates.append("college = %s")
+                    params.append(college)
+                if location and not existing.get("location"):
+                    updates.append("location = %s")
+                    params.append(location)
+                if bio and not existing.get("bio"):
+                    updates.append("bio = %s")
+                    params.append(bio)
+                if headline and not existing.get("headline"):
+                    updates.append("headline = %s")
+                    params.append(headline)
+                if github_url and not existing.get("github_url"):
+                    updates.append("github_url = %s")
+                    params.append(github_url)
+                if linkedin_url and not existing.get("linkedin_url"):
+                    updates.append("linkedin_url = %s")
+                    params.append(linkedin_url)
 
-                # Restore handles into coding_profiles
+                if updates:
+                    params.append(uid)
+                    db_query(f"UPDATE users SET {', '.join(updates)} WHERE id = %s", tuple(params), commit=True)
+
+                # Restore handles into coding_profiles with saved solved counts and ratings
                 handles = u_info.get("handles", {})
+                p_stats = u_info.get("platform_stats", {})
                 for plat, h_val in handles.items():
                     if h_val:
-                        save_user_coding_profile(uid, plat, h_val, "Connected", 0, "Connected")
+                        ps = p_stats.get(plat.lower(), {})
+                        s_cnt = ps.get("solved", 0)
+                        s_rat = ps.get("rating", "Connected")
+                        s_lbl = ps.get("label", "Connected")
+                        save_user_coding_profile(uid, plat, h_val, s_rat, s_cnt, s_lbl)
+
+                # Restore projects
+                for pr in u_info.get("projects", []):
+                    p_title = pr.get("title")
+                    if p_title:
+                        ex_proj = db_query("SELECT id FROM projects WHERE user_id = %s AND title = %s", (uid, p_title), fetchone=True)
+                        if not ex_proj:
+                            save_user_project(uid, p_title, pr.get("description", ""), pr.get("tags", []), pr.get("repo_url", ""), pr.get("demo_url", ""))
         except Exception as err:
             print(f"Notice restoring persistent user {email}: {err}")
+
+    # Restore announcements
+    for ann in backup_data.get("announcements", []):
+        if ann.get("title"):
+            ex_ann = db_query("SELECT id FROM announcements WHERE title = %s", (ann["title"],), fetchone=True)
+            if not ex_ann:
+                db_query("INSERT INTO announcements (title, content, priority, author, created_at) VALUES (%s, %s, %s, %s, %s)",
+                         (ann.get("title"), ann.get("content", ""), ann.get("priority", "normal"), ann.get("author", "Educator Console"), datetime.utcnow()), commit=True)
+
+    # Restore assignments
+    for asg in backup_data.get("assignments", []):
+        if asg.get("title"):
+            ex_asg = db_query("SELECT id FROM assignments WHERE title = %s", (asg["title"],), fetchone=True)
+            if not ex_asg:
+                db_query("INSERT INTO assignments (title, description, dsa_topic, deadline, problems_json, created_at) VALUES (%s, %s, %s, %s, %s, %s)",
+                         (asg.get("title"), asg.get("description", ""), asg.get("dsa_topic", "General DSA"), asg.get("deadline", "Upcoming"), asg.get("problems_json", "[]"), datetime.utcnow()), commit=True)
+
+    # Now make sure DB and backup JSON are synchronized
+    dump_full_database_to_backup()
 
 
 
@@ -943,6 +1094,7 @@ def signup():
         )
 
         backup_user_state(email, name=name, password_hash=password_hash, college=college, location=location)
+        dump_full_database_to_backup()
 
         flash("Account created successfully! Please log in.", "success")
         return redirect(url_for("login"))
@@ -1004,7 +1156,7 @@ def find_user_by_identifier(identifier):
 
 def verify_user_password(stored_hash, input_password):
     """
-    Robust password verification tolerating whitespace variations and master pass.
+    Secure password verification checking input against stored password hash.
     """
     if not stored_hash or not input_password:
         return False
@@ -1017,8 +1169,6 @@ def verify_user_password(stored_hash, input_password):
             return True
     except Exception as pe:
         print("Password check exception:", pe)
-    if clean_pw.lower() in ["password", "password123", "admin123"]:
-        return True
     return False
 
 
@@ -1026,11 +1176,20 @@ def verify_user_password(stored_hash, input_password):
 def login():
     if request.method == "POST":
         identifier = request.form.get("email", "").strip()
-        password = request.form.get("password", "").strip()
+        password = request.form.get("password", "")
 
         if not identifier or not password:
             flash("Please enter both email/username and password.", "error")
             return render_template("login.html")
+
+        # Allow educator admin credentials to authenticate directly from student portal if entered
+        admin_email = os.environ.get("ADMIN_EMAIL", "admin@skillstack.com").lower()
+        admin_pass = os.environ.get("ADMIN_PASSWORD", "admin123")
+        if (identifier.lower() == admin_email or identifier.lower() == "admin") and password == admin_pass:
+            session["admin_logged_in"] = True
+            session["admin_name"] = "Educator Console Admin"
+            flash("Logged in successfully as Educator Admin.", "success")
+            return redirect(url_for("admin_dashboard"))
 
         # Robust multi-handle user lookup
         users = find_user_by_identifier(identifier)
@@ -1105,6 +1264,7 @@ def forgot_password():
                     commit=True
                 )
                 backup_user_state(u["email"], password_hash=new_hash)
+            dump_full_database_to_backup()
 
             primary_user = users[0]
             session["user_id"] = primary_user["id"]
@@ -1241,14 +1401,15 @@ def public_portfolio(username):
     solved_rows = db_query("SELECT title, num, topic, platform FROM user_solved_problems WHERE user_id = %s", (target_user_id,), fetchall=True) or []
     topic_counts = {'Arrays': 0, 'DP': 0, 'Strings': 0, 'Trees': 0, 'Graphs': 0}
     for r in solved_rows:
+        top = (r.get('topic') or '').lower()
         t = (r.get('title') or '').lower()
-        if any(k in t for k in ['dp', 'stair', 'robber', 'coin', 'subsequence', 'target']):
+        if top in ['dp', 'dynamic programming'] or any(k in t for k in ['dp', 'stair', 'robber', 'coin', 'subsequence', 'target', 'knapsack', 'partition', 'score', 'heights', 'maximise']):
             topic_counts['DP'] += 1
-        elif any(k in t for k in ['string', 'anagram', 'palindrome', 'substring', 'word', 'parenthes']):
+        elif top in ['string', 'strings'] or any(k in t for k in ['string', 'anagram', 'palindrome', 'substring', 'word', 'parenthes', 'maths', 'petya', 'char', 'text', 'ac']):
             topic_counts['Strings'] += 1
-        elif any(k in t for k in ['tree', 'bst', 'node', 'binary tree']):
+        elif top in ['tree', 'trees'] or any(k in t for k in ['tree', 'bst', 'node', 'binary tree', 'depth', 'root', 'leaf']):
             topic_counts['Trees'] += 1
-        elif any(k in t for k in ['graph', 'island', 'course', 'path', 'water', 'loop']):
+        elif top in ['graph', 'graphs'] or any(k in t for k in ['graph', 'island', 'course', 'path', 'water', 'loop', 'bfs', 'dfs', 'grid', 'network', 'cycle']):
             topic_counts['Graphs'] += 1
         else:
             topic_counts['Arrays'] += 1
@@ -1491,14 +1652,15 @@ def dashboard():
     solved_rows = db_query("SELECT title, num, topic, platform FROM user_solved_problems WHERE user_id = %s", (user_id,), fetchall=True) or []
     topic_counts = {'Arrays': 0, 'DP': 0, 'Strings': 0, 'Trees': 0, 'Graphs': 0}
     for r in solved_rows:
+        top = (r.get('topic') or '').lower()
         t = (r.get('title') or '').lower()
-        if any(k in t for k in ['dp', 'stair', 'robber', 'coin', 'subsequence', 'target']):
+        if top in ['dp', 'dynamic programming'] or any(k in t for k in ['dp', 'stair', 'robber', 'coin', 'subsequence', 'target', 'knapsack', 'partition', 'score', 'heights', 'maximise']):
             topic_counts['DP'] += 1
-        elif any(k in t for k in ['string', 'anagram', 'palindrome', 'substring', 'word', 'parenthes']):
+        elif top in ['string', 'strings'] or any(k in t for k in ['string', 'anagram', 'palindrome', 'substring', 'word', 'parenthes', 'maths', 'petya', 'char', 'text', 'ac']):
             topic_counts['Strings'] += 1
-        elif any(k in t for k in ['tree', 'bst', 'node', 'binary tree']):
+        elif top in ['tree', 'trees'] or any(k in t for k in ['tree', 'bst', 'node', 'binary tree', 'depth', 'root', 'leaf']):
             topic_counts['Trees'] += 1
-        elif any(k in t for k in ['graph', 'island', 'course', 'path', 'water', 'loop']):
+        elif top in ['graph', 'graphs'] or any(k in t for k in ['graph', 'island', 'course', 'path', 'water', 'loop', 'bfs', 'dfs', 'grid', 'network', 'cycle']):
             topic_counts['Graphs'] += 1
         else:
             topic_counts['Arrays'] += 1
@@ -1824,8 +1986,7 @@ def sync_real_user_solved_from_apis(user_id):
             elif k == "codeforces" and not cf_handle:
                 cf_handle = h
 
-    db_query('DELETE FROM user_solved_problems WHERE user_id = %s', (user_id,), commit=True)
-    total_inserted = 0
+    new_problems = []
 
     # 1. Fetch REAL live GFG submissions
     if gfg_handle:
@@ -1850,14 +2011,8 @@ def sync_real_user_solved_from_apis(user_id):
                                 pname = details.get("pname")
                                 slug = (details.get("slug") or pname.lower().replace(' ', '-'))[:140]
                                 if pname:
-                                    db_query(
-                                        '''INSERT INTO user_solved_problems (user_id, problem_id, title, num, topic, diff, platform, created_at)
-                                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
-                                        (user_id, f"gfg_{slug}", pname, str(idx), 'arr', diff.capitalize() if diff else 'Medium', 'gfg', datetime.utcnow()),
-                                        commit=True
-                                    )
+                                    new_problems.append((user_id, f"gfg_{slug}", pname, str(idx), 'arr', diff.capitalize() if diff else 'Medium', 'gfg', datetime.utcnow()))
                                     idx += 1
-                                    total_inserted += 1
         except Exception as e:
             print(f"Notice fetching live GFG solved for {gfg_handle}: {e}")
 
@@ -1882,14 +2037,8 @@ def sync_real_user_solved_from_apis(user_id):
                     slug = (s.get('titleSlug') or t.lower().replace(' ', '-'))[:140]
                     if t and t not in seen:
                         seen.add(t)
-                        db_query(
-                            '''INSERT INTO user_solved_problems (user_id, problem_id, title, num, topic, diff, platform, created_at)
-                               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
-                            (user_id, f"lc_{slug}", t, str(idx), 'arr', 'Medium', 'leetcode', datetime.utcnow()),
-                            commit=True
-                        )
+                        new_problems.append((user_id, f"lc_{slug}", t, str(idx), 'arr', 'Medium', 'leetcode', datetime.utcnow()))
                         idx += 1
-                        total_inserted += 1
         except Exception as e:
             print(f"Notice fetching live LeetCode solved for {lc_handle}: {e}")
 
@@ -1908,14 +2057,8 @@ def sync_real_user_solved_from_apis(user_id):
                     slug = (m.get('ch_slug') or t.lower().replace(' ', '-'))[:140]
                     if t and t not in seen:
                         seen.add(t)
-                        db_query(
-                            '''INSERT INTO user_solved_problems (user_id, problem_id, title, num, topic, diff, platform, created_at)
-                               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
-                            (user_id, f"hr_{slug}", t, str(idx), 'arr', 'Easy', 'hackerrank', datetime.utcnow()),
-                            commit=True
-                        )
+                        new_problems.append((user_id, f"hr_{slug}", t, str(idx), 'arr', 'Easy', 'hackerrank', datetime.utcnow()))
                         idx += 1
-                        total_inserted += 1
         except Exception as e:
             print(f"Notice fetching live HackerRank solved for {hr_handle}: {e}")
 
@@ -1936,16 +2079,21 @@ def sync_real_user_solved_from_apis(user_id):
                             if name and name not in seen:
                                 seen.add(name)
                                 num_str = f"{prob.get('contestId', '')}{prob.get('index', '')}"
-                                db_query(
-                                    '''INSERT INTO user_solved_problems (user_id, problem_id, title, num, topic, diff, platform, created_at)
-                                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
-                                    (user_id, f"cf_{num_str}", name, num_str, 'arr', 'Medium', 'codeforces', datetime.utcnow()),
-                                    commit=True
-                                )
+                                new_problems.append((user_id, f"cf_{num_str}", name, num_str, 'arr', 'Medium', 'codeforces', datetime.utcnow()))
                                 idx += 1
-                                total_inserted += 1
         except Exception as e:
             print(f"Notice fetching live Codeforces solved for {cf_handle}: {e}")
+
+    # Only replace DB problems if fresh problems were successfully fetched
+    if new_problems:
+        db_query('DELETE FROM user_solved_problems WHERE user_id = %s', (user_id,), commit=True)
+        for p in new_problems:
+            db_query(
+                '''INSERT INTO user_solved_problems (user_id, problem_id, title, num, topic, diff, platform, created_at)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
+                p,
+                commit=True
+            )
 
 @app.route("/skills")
 @login_required
@@ -2148,7 +2296,9 @@ def admin_login():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-        if email == "admin@skillstack.com" and password == "admin123":
+        admin_email = os.environ.get("ADMIN_EMAIL", "admin@skillstack.com").lower()
+        admin_pass = os.environ.get("ADMIN_PASSWORD", "admin123")
+        if email == admin_email and password == admin_pass:
             session["admin_logged_in"] = True
             session["admin_name"] = "Educator Console Admin"
             return redirect(url_for("admin_dashboard"))
@@ -2303,9 +2453,19 @@ def admin_delete_user(user_id):
     if not session.get("admin_logged_in"):
         flash("Admin authentication required.", "error")
         return redirect(url_for("admin_login"))
+    u_row = db_query("SELECT email FROM users WHERE id = %s", (user_id,), fetchone=True)
+    if u_row and u_row.get("email"):
+        em = u_row["email"].lower().strip()
+        backup = load_persistent_backup()
+        if em in backup.get("users", {}):
+            del backup["users"][em]
+            save_persistent_backup(backup)
+
     db_query("DELETE FROM users WHERE id = %s", (user_id,), commit=True)
     db_query("DELETE FROM coding_profiles WHERE user_id = %s", (user_id,), commit=True)
     db_query("DELETE FROM projects WHERE user_id = %s", (user_id,), commit=True)
+    db_query("DELETE FROM user_solved_problems WHERE user_id = %s", (user_id,), commit=True)
+    dump_full_database_to_backup()
     flash(f"Student account #{user_id} removed from system.", "success")
     return redirect(url_for("admin_dashboard"))
 
@@ -2317,6 +2477,7 @@ def admin_reset_password(user_id):
         return redirect(url_for("admin_login"))
     default_hash = generate_password_hash("password123")
     db_query("UPDATE users SET password_hash = %s WHERE id = %s", (default_hash, user_id), commit=True)
+    dump_full_database_to_backup()
     flash(f"Password for Student ID #{user_id} reset to 'password123'.", "success")
     return redirect(url_for("admin_dashboard"))
 
@@ -2359,6 +2520,7 @@ def admin_create_announcement():
             (title, content, priority, author, datetime.utcnow()),
             commit=True
         )
+        dump_full_database_to_backup()
         flash(f"Broadcast Announcement '{title}' published successfully!", "success")
     return redirect(url_for("admin_dashboard"))
 
@@ -2368,6 +2530,7 @@ def admin_delete_announcement(id):
     if not session.get("admin_logged_in"):
         return redirect(url_for("admin_login"))
     db_query("DELETE FROM announcements WHERE id = %s", (id,), commit=True)
+    dump_full_database_to_backup()
     flash("Announcement deleted.", "success")
     return redirect(url_for("admin_dashboard"))
 
@@ -2403,6 +2566,7 @@ def admin_create_assignment():
             (title, description, dsa_topic, deadline, json.dumps(problems_list), datetime.utcnow()),
             commit=True
         )
+        dump_full_database_to_backup()
         flash(f"Assignment '{title}' published to students!", "success")
     return redirect(url_for("admin_dashboard"))
 
@@ -2412,6 +2576,7 @@ def admin_delete_assignment(id):
     if not session.get("admin_logged_in"):
         return redirect(url_for("admin_login"))
     db_query("DELETE FROM assignments WHERE id = %s", (id,), commit=True)
+    dump_full_database_to_backup()
     flash("Assignment deleted.", "success")
     return redirect(url_for("admin_dashboard"))
 
@@ -2585,6 +2750,7 @@ def user_profile():
             (name, headline, college, location, bio, github, linkedin, user_id),
             commit=True
         )
+        dump_full_database_to_backup()
 
         if name:
             session["user_name"] = name
@@ -3103,6 +3269,7 @@ def connect_platform():
         if u_rec and u_rec.get("email"):
             backup_user_state(u_rec["email"], handle_dict={platform: handle})
         ensure_user_solved_problems_synced(user_id)
+        dump_full_database_to_backup()
         msg = f"Fetched {solved_val} & rating '{rating_val}'"
         save_sync_log(user_id, platform, "✓ Synced (200 OK)", msg)
         check_and_award_badges(user_id)
@@ -3154,6 +3321,7 @@ def batch_connect_platforms():
                     connected_results.append(platform_key)
 
     check_and_award_badges(user_id)
+    dump_full_database_to_backup()
 
     return jsonify({
         "success": True,
@@ -3325,6 +3493,9 @@ def sync_stats():
                 save_sync_log(user_id, plat_key, "✓ Synced (200 OK)", f"Refreshed stats: {solved_val}, {rating_val}")
                 synced_count += 1
 
+    if synced_count > 0:
+        dump_full_database_to_backup()
+
     return jsonify({
         "success": True,
         "message": f"Successfully synchronized {synced_count} active platform profile(s)!",
@@ -3393,6 +3564,7 @@ def add_project():
 
     project_id = save_user_project(user_id, title, description, tags, repo_url or "", demo_url or "")
     check_and_award_badges(user_id)
+    dump_full_database_to_backup()
 
     return jsonify({
         "success": True,
@@ -3548,6 +3720,8 @@ def api_import_github_repos():
 def delete_project(project_id):
     user_id = session.get("user_id", 1)
     success = delete_user_project(user_id, project_id)
+    if success:
+        dump_full_database_to_backup()
     return jsonify({
         "success": success,
         "message": "Project removed from portfolio." if success else "Could not delete project."
@@ -3739,4 +3913,4 @@ def ai_study_plan():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
+  

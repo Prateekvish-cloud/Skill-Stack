@@ -65,20 +65,18 @@
       <form method="POST" action="{{ url_for('admin_login') }}" class="auth-form">
         <div class="field">
           <label for="admin_email">Admin Email Address</label>
-          <input type="email" id="admin_email" name="email" value="admin@skillstack.com" required placeholder="admin@skillstack.com" />
+          <input type="email" id="admin_email" name="email" required placeholder="Enter admin email" />
         </div>
 
         <div class="field">
           <label for="admin_password">Security Key / Password</label>
-          <input type="password" id="admin_password" name="password" value="admin123" required placeholder="Enter password" />
+          <input type="password" id="admin_password" name="password" required placeholder="Enter security key or password" />
         </div>
 
         <button type="submit" class="btn-primary auth-btn-full">
           Authenticate Admin Access ↗
         </button>
       </form>
-
-      <p class="auth-switch">Default Key: <strong>admin123</strong></p>
     </div>
 
   </div>

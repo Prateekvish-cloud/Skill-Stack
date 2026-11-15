@@ -188,7 +188,7 @@
         </div>
         <div class="panel-alt" style="text-align:center;">
             <p class="panel-label">Active Streak</p>
-            <p class="panel-big" style="color:#D8CFBC; text-shadow: 0 0 12px rgba(216,207,188,0.3);">348 🔥</p>
+            <p class="panel-big" style="color:#5A47FC; text-shadow: 0 0 16px rgba(90,71,252,0.25);">348 🔥</p>
             <p class="panel-sub">Days Active</p>
         </div>
         <div class="panel-alt heatmap-panel">
@@ -395,7 +395,7 @@
     <a href="{{ url_for('signup') }}" class="btn-primary" style="padding:13px 28px; font-size:15px;">Create your free account</a>
 </section>
 
-<footer class="land-footer" style="padding:28px 24px; border-top:1px solid rgba(216,207,188,0.15);">
+<footer class="land-footer" style="padding:28px 24px; border-top:1px solid var(--border);">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; max-width:1200px; margin:0 auto;">
         <div>
             <div class="brand" style="font-size:16px;">Skill<span>Stack</span></div>
@@ -403,8 +403,8 @@
         </div>
         <div style="display:flex; gap:16px; align-items:center; font-size:13px;">
             <a href="{{ url_for('login') }}" style="color:var(--ink); text-decoration:none;">Student Login</a>
-            <a href="{{ url_for('signup') }}" style="color:#D8CFBC; text-decoration:none; font-weight:700;">Sign Up</a>
-            <a href="{{ url_for('admin_login') }}" style="color:#ffa726; text-decoration:none; font-weight:700;">👑 Educator Admin Portal ↗</a>
+            <a href="{{ url_for('signup') }}" style="color:#5A47FC; text-decoration:none; font-weight:700;">Sign Up</a>
+            <a href="{{ url_for('admin_login') }}" style="color:#F59E0B; text-decoration:none; font-weight:700;">👑 Educator Admin Portal ↗</a>
         </div>
     </div>
 </footer>
@@ -434,8 +434,8 @@
                 {
                     label: 'LeetCode Rating',
                     data: [1650, 1710, 1780, 1820, 1890, 1910, 1942],
-                    borderColor: '#D8CFBC',
-                    backgroundColor: 'rgba(216, 207, 188, 0.15)',
+                    borderColor: '#5A47FC',
+                    backgroundColor: 'rgba(90, 71, 252, 0.1)',
                     fill: true,
                     tension: 0.35,
                     borderWidth: 2.5
@@ -443,7 +443,7 @@
                 {
                     label: 'CodeChef Rating',
                     data: [1520, 1600, 1680, 1740, 1810, 1850, 1885],
-                    borderColor: '#565449',
+                    borderColor: '#06B6D4',
                     borderDash: [5, 5],
                     fill: false,
                     tension: 0.35,
@@ -457,12 +457,12 @@
             plugins: {
                 legend: {
                     position: 'top',
-                    labels: { color: '#a8a396', font: { size: 11 } }
+                    labels: { color: '#64748B', font: { size: 11 } }
                 }
             },
             scales: {
-                x: { grid: { color: 'rgba(86, 84, 73, 0.3)' }, ticks: { color: '#a8a396', font: { size: 11 } } },
-                y: { grid: { color: 'rgba(86, 84, 73, 0.3)' }, ticks: { color: '#FFFBF4', font: { size: 11 } } }
+                x: { grid: { color: 'rgba(232, 234, 244, 0.8)' }, ticks: { color: '#8A90A4', font: { size: 11 } } },
+                y: { grid: { color: 'rgba(232, 234, 244, 0.8)' }, ticks: { color: '#171827', font: { size: 11 } } }
             }
         }
     });
@@ -474,8 +474,8 @@
             labels: ['Arrays', 'DP', 'Strings', 'Trees', 'Graphs'],
             datasets: [{
                 data: [301, 212, 190, 88, 65],
-                backgroundColor: '#D8CFBC',
-                borderRadius: 4,
+                backgroundColor: '#5A47FC',
+                borderRadius: 6,
                 barThickness: 16,
             }]
         },
@@ -485,8 +485,8 @@
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                x: { grid: { color: '#1b453b' }, ticks: { color: '#8ca39b', font: { size: 11 } } },
-                y: { grid: { display: false }, ticks: { color: '#f1f3f7', font: { size: 11.5, weight: '600' } } }
+                x: { grid: { color: '#E8EAF4' }, ticks: { color: '#8A90A4', font: { size: 11 } } },
+                y: { grid: { display: false }, ticks: { color: '#171827', font: { size: 11.5, weight: '600' } } }
             }
         }
     });

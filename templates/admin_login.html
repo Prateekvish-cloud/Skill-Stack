@@ -22,12 +22,12 @@
     <form action="{{ url_for('admin_login') }}" method="POST" class="auth-form" style="text-align:left;">
       <div class="field">
         <label>Admin Email Address</label>
-        <input type="email" name="email" value="admin@skillstack.com" required placeholder="admin@skillstack.com">
+        <input type="email" name="email" required placeholder="admin@skillstack.com">
       </div>
 
       <div class="field">
         <label>Security Key / Password</label>
-        <input type="password" name="password" value="admin123" required placeholder="••••••••">
+        <input type="password" name="password" required placeholder="••••••••">
       </div>
 
       <button type="submit" class="btn-primary" style="padding:12px; font-size:13.5px; font-weight:700; cursor:pointer; margin-top:10px; background:linear-gradient(135deg, #ffa726 0%, #c9820f 100%); color:#1e1f19; border:none; border-radius:10px;">
