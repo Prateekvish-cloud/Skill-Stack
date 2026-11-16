@@ -242,32 +242,39 @@
           </div>
           <p class="panel-empty" style="font-size:12px; margin-bottom:14px;">Real submissions from LC, GH & CF</p>
           
+          <!-- Interactive Day Inspector Bar -->
+          <div id="heatmapActiveDay" style="display:flex; align-items:center; justify-content:space-between; background:rgba(30,31,25,0.7); border:1px solid rgba(216,207,188,0.22); border-radius:8px; padding:6px 12px; margin-bottom:12px; font-size:12px;">
+            <span id="heatDayLabel" style="color:#FFFBF4; font-weight:600;">📅 Hover any box to inspect date</span>
+            <span id="heatCountBadge" style="color:#39d353; font-weight:700; background:rgba(57,211,83,0.12); padding:2px 8px; border-radius:10px;">—</span>
+          </div>
+
           <!-- Structured Calendar with Day/Month Labels -->
-          <div style="display:flex; gap:10px; align-items:flex-start;">
-            <!-- Day Labels -->
-            <div style="display:flex; flex-direction:column; justify-content:space-around; font-size:11px; color:#D8CFBC; font-weight:700; height:122px; padding:28px 0 6px 0; user-select:none; line-height:1;">
+          <div style="display:flex; gap:8px; align-items:stretch;">
+            <!-- Day Labels (exact 7-day row alignment) -->
+            <div style="display:flex; flex-direction:column; justify-content:space-between; font-size:10px; color:#D8CFBC; font-weight:700; text-align:right; padding:30px 4px 10px 0; user-select:none; line-height:1;">
               <span>Mon</span>
               <span>Wed</span>
               <span>Fri</span>
+              <span>Sun</span>
             </div>
 
             <div style="flex:1; min-width:0;">
-              <!-- Month Labels Header (dynamic with border line) -->
-              <div id="heatmapMonths" style="display:grid; grid-template-columns: repeat(4, 1fr); font-size:12px; font-weight:700; color:#FFFBF4; margin-bottom:8px; border-bottom:1px solid rgba(216,207,188,0.25); padding-bottom:6px; text-align:left;"></div>
+              <!-- Month Labels Header: 16 columns matching the 16 week columns -->
+              <div id="heatmapMonths" style="display:grid; grid-template-columns: repeat(16, 1fr); gap:4px; font-size:11.5px; font-weight:700; color:#FFFBF4; margin-bottom:6px; border-bottom:1px solid rgba(216,207,188,0.25); padding-bottom:5px; text-align:left;"></div>
               <!-- Heatmap Grid -->
               <div class="heatmap-grid" id="dashHeatmap"><div style="color:var(--muted);font-size:11px;padding:8px;">Loading real data...</div></div>
             </div>
           </div>
 
           <!-- Footer Summary & Legend -->
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px; padding-top:10px; border-top:1px solid rgba(216,207,188,0.1);">
-            <span id="heatmapTotal" style="font-size:11px; color:var(--muted);">Loading submissions...</span>
-            <div style="display:flex; align-items:center; gap:4px; font-size:10.5px; color:var(--muted);">
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid rgba(216,207,188,0.15);">
+            <span id="heatmapTotal" style="font-size:11.5px; color:#D8CFBC; font-weight:600;">Loading submissions...</span>
+            <div style="display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--muted);">
               <span>Less</span>
               <span class="heat-cell level-0" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="No activity"></span>
-              <span class="heat-cell level-1" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="1-3 submissions"></span>
-              <span class="heat-cell level-2" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="4-6 submissions"></span>
-              <span class="heat-cell level-3" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="7-9 submissions"></span>
+              <span class="heat-cell level-1" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="1-2 submissions"></span>
+              <span class="heat-cell level-2" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="3-5 submissions"></span>
+              <span class="heat-cell level-3" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="6-9 submissions"></span>
               <span class="heat-cell level-4" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="10+ submissions"></span>
               <span>More</span>
             </div>
@@ -617,6 +624,9 @@
     const streakBadge = document.getElementById('streakBadge');
     const heatmapTotal = document.getElementById('heatmapTotal');
     const heatmapMonths = document.getElementById('heatmapMonths');
+    const heatDayLabel = document.getElementById('heatDayLabel');
+    const heatCountBadge = document.getElementById('heatCountBadge');
+
     function buildHeatmap(dailyData) {
       if (!dashHeatmap) return;
       dashHeatmap.innerHTML = '';
@@ -629,22 +639,48 @@
       currentMonday.setDate(today.getDate() - distToMon);
       currentMonday.setHours(0, 0, 0, 0);
 
+      const WEEKS = 16;
       // Start 15 weeks before current Monday (16 weeks total = 112 cells)
       const startDate = new Date(currentMonday);
-      startDate.setDate(currentMonday.getDate() - 15 * 7);
+      startDate.setDate(currentMonday.getDate() - (WEEKS - 1) * 7);
 
-      // Month labels header: compute 4 months across the 16-week span
+      // Month labels header: detect week where each new month actually begins
       if (heatmapMonths) {
-        const monthNames = [];
-        for (let w = 0; w < 16; w += 4) {
-          const mDate = new Date(startDate);
-          mDate.setDate(startDate.getDate() + w * 7);
-          monthNames.push(mDate.toLocaleString('en-US', { month: 'short' }));
+        let lastMonth = '';
+        const monthList = [];
+        for (let w = 0; w < WEEKS; w++) {
+          const wDate = new Date(startDate);
+          wDate.setDate(startDate.getDate() + w * 7);
+          const m = wDate.toLocaleString('en-US', { month: 'short' });
+          if (m !== lastMonth) {
+            monthList.push({ week: w, name: m });
+            lastMonth = m;
+          }
         }
-        heatmapMonths.innerHTML = monthNames.map(m => `<span style="color:#D8CFBC; letter-spacing:0.5px;">${m}</span>`).join('');
+
+        // Render each month label spanning its exact week columns
+        let headerHtml = '';
+        for (let i = 0; i < monthList.length; i++) {
+          const cur = monthList[i];
+          const nextWeek = (i + 1 < monthList.length) ? monthList[i + 1].week : WEEKS;
+          const spanCount = nextWeek - cur.week;
+          headerHtml += `<span style="grid-column: span ${spanCount}; color:#D8CFBC; font-weight:700; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${cur.name}</span>`;
+        }
+        heatmapMonths.innerHTML = headerHtml;
       }
 
       const todayStr = today.toISOString().split('T')[0];
+      const todayCount = (dailyData || {})[todayStr] || 0;
+
+      function setDefaultInspector() {
+        if (heatDayLabel) {
+          heatDayLabel.innerHTML = `📅 <strong>Today: ${today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</strong>`;
+        }
+        if (heatCountBadge) {
+          heatCountBadge.textContent = `${todayCount} submission${todayCount !== 1 ? 's' : ''}`;
+        }
+      }
+      setDefaultInspector();
 
       for (let i = 0; i < 112; i++) {
         const d = new Date(startDate);
@@ -660,8 +696,21 @@
         cell.className = `heat-cell level-${level}` + (isToday ? ' is-today' : '') + (isFuture ? ' is-future' : '');
         const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
         cell.title = isFuture ? `${label} (Upcoming)` : `${label}: ${count > 0 ? count + ' submission' + (count > 1 ? 's' : '') : 'No activity'}`;
+
+        // Live inspector updates on hover and tap
+        cell.addEventListener('mouseenter', () => {
+          if (heatDayLabel) heatDayLabel.innerHTML = `📅 <strong>${label}</strong>`;
+          if (heatCountBadge) heatCountBadge.textContent = isFuture ? 'Upcoming' : `${count} submission${count !== 1 ? 's' : ''}`;
+        });
+        cell.addEventListener('click', () => {
+          if (heatDayLabel) heatDayLabel.innerHTML = `📅 <strong>${label}</strong>`;
+          if (heatCountBadge) heatCountBadge.textContent = isFuture ? 'Upcoming' : `${count} submission${count !== 1 ? 's' : ''}`;
+        });
+
         dashHeatmap.appendChild(cell);
       }
+
+      dashHeatmap.addEventListener('mouseleave', setDefaultInspector);
     }
 
     // Fetch real data from the API
