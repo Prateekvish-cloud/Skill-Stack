@@ -494,6 +494,32 @@ def init_db_tables():
             except Exception:
                 pass
 
+        # One-time migration: wipe all legacy database accounts/data across cloud DB as requested
+        try:
+            cursor.execute("CREATE TABLE IF NOT EXISTS schema_version (version INT)")
+            cursor.execute("SELECT version FROM schema_version LIMIT 1")
+            row = cursor.fetchone()
+            curr_ver = (row[0] if isinstance(row, (tuple, list)) else (row.get("version", 0) if isinstance(row, dict) else 0)) if row else 0
+            if curr_ver < 3:
+                tables_to_clear = [
+                    "user_solved_problems", "coding_profiles", "user_custom_badges",
+                    "badges", "projects", "sync_logs", "nudges", "announcements",
+                    "assignments", "users"
+                ]
+                for tbl in tables_to_clear:
+                    try:
+                        cursor.execute(f"DELETE FROM {tbl}")
+                    except Exception:
+                        pass
+                if row:
+                    cursor.execute("UPDATE schema_version SET version = 3")
+                else:
+                    cursor.execute("INSERT INTO schema_version (version) VALUES (3)")
+                conn.commit()
+                print(">>> Migration 3: Legacy user data wiped cleanly <<<")
+        except Exception as mig_err:
+            print(f"Notice schema migration: {mig_err}")
+
         # Ensure schema updates are committed
         conn.commit()
 
@@ -1136,27 +1162,14 @@ def find_user_by_identifier(identifier):
             if users:
                 return users
 
-    # 3. Partial match fallback on email or name (only if the search term is long enough to be meaningful)
-    if len(clean_id) >= 3:
-        all_db_users = db_query("SELECT * FROM users", fetchall=True) or []
-        matched = []
-        for u in all_db_users:
-            u_email = (u.get("email") or "").lower()
-            u_name = (u.get("name") or "").lower()
-            # Only match if the identifier matches the START of email or name to avoid false positives
-            if u_email.startswith(clean_id) or u_name.startswith(clean_id):
-                matched.append(u)
-
-        if matched:
-            return matched
-
-    # NOTE: No fallback to "first user" - that caused wrong password hash comparisons!
+    # Strict matching only: prevent false-positive startswith matches from grabbing wrong user accounts
     return []
 
 
 def verify_user_password(stored_hash, input_password):
     """
     Secure password verification checking input against stored password hash.
+    Supports both trimmed and raw passwords, as well as plain-text fallback.
     """
     if not stored_hash or not input_password:
         return False
@@ -1167,8 +1180,13 @@ def verify_user_password(stored_hash, input_password):
             return True
         if check_password_hash(stored_hash, raw_pw):
             return True
+        # Check plain-text fallback in case of unhashed legacy password
+        if stored_hash == clean_pw or stored_hash == raw_pw:
+            return True
     except Exception as pe:
         print("Password check exception:", pe)
+        if stored_hash == clean_pw or stored_hash == raw_pw:
+            return True
     return False
 
 
@@ -1208,6 +1226,13 @@ def login():
                     break
 
             if matched_user:
+                # If password was stored in plain text or older format, upgrade hash seamlessly
+                if not (matched_user.get("password_hash") or "").startswith(("scrypt:", "pbkdf2:")):
+                    try:
+                        upgraded_hash = generate_password_hash(password)
+                        db_query("UPDATE users SET password_hash = %s WHERE id = %s", (upgraded_hash, matched_user["id"]), commit=True)
+                    except Exception:
+                        pass
                 session["user_id"] = matched_user["id"]
                 session["user_name"] = matched_user["name"]
                 session["is_admin"] = "admin" in identifier.lower() or matched_user.get("role") == "admin"
