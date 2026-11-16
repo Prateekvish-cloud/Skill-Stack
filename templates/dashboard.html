@@ -243,17 +243,17 @@
           <p class="panel-empty" style="font-size:12px; margin-bottom:14px;">Real submissions from LC, GH & CF</p>
           
           <!-- Structured Calendar with Day/Month Labels -->
-          <div style="display:flex; gap:10px;">
+          <div style="display:flex; gap:10px; align-items:flex-start;">
             <!-- Day Labels -->
-            <div style="display:flex; flex-direction:column; justify-content:space-between; font-size:10px; color:var(--muted); font-weight:600; padding:20px 0 4px; line-height:1;">
+            <div style="display:flex; flex-direction:column; justify-content:space-around; font-size:11px; color:#D8CFBC; font-weight:700; height:122px; padding:28px 0 6px 0; user-select:none; line-height:1;">
               <span>Mon</span>
               <span>Wed</span>
               <span>Fri</span>
             </div>
 
             <div style="flex:1; min-width:0;">
-              <!-- Month Labels Header (dynamic) -->
-              <div id="heatmapMonths" style="display:grid; grid-template-columns: repeat(4, 1fr); font-size:11px; color:var(--muted); font-weight:600; margin-bottom:6px; text-align:left;"></div>
+              <!-- Month Labels Header (dynamic with border line) -->
+              <div id="heatmapMonths" style="display:grid; grid-template-columns: repeat(4, 1fr); font-size:12px; font-weight:700; color:#FFFBF4; margin-bottom:8px; border-bottom:1px solid rgba(216,207,188,0.25); padding-bottom:6px; text-align:left;"></div>
               <!-- Heatmap Grid -->
               <div class="heatmap-grid" id="dashHeatmap"><div style="color:var(--muted);font-size:11px;padding:8px;">Loading real data...</div></div>
             </div>
@@ -617,36 +617,49 @@
     const streakBadge = document.getElementById('streakBadge');
     const heatmapTotal = document.getElementById('heatmapTotal');
     const heatmapMonths = document.getElementById('heatmapMonths');
-    const DAYS = 112; // 16 weeks
-
     function buildHeatmap(dailyData) {
       if (!dashHeatmap) return;
       dashHeatmap.innerHTML = '';
 
       const today = new Date();
-      // Compute month labels for the 16 weeks shown
+      // Align grid rows to start on Monday (Row 1: Mon ... Row 7: Sun)
+      const dayOfWeek = today.getDay(); // 0 is Sun, 1 is Mon...
+      const distToMon = (dayOfWeek + 6) % 7; // 0 for Mon, 1 for Tue... 6 for Sun
+      const currentMonday = new Date(today);
+      currentMonday.setDate(today.getDate() - distToMon);
+      currentMonday.setHours(0, 0, 0, 0);
+
+      // Start 15 weeks before current Monday (16 weeks total = 112 cells)
+      const startDate = new Date(currentMonday);
+      startDate.setDate(currentMonday.getDate() - 15 * 7);
+
+      // Month labels header: compute 4 months across the 16-week span
       if (heatmapMonths) {
-        const months = {};
-        for (let i = DAYS - 1; i >= 0; i--) {
-          const d = new Date();
-          d.setDate(today.getDate() - i);
-          const mn = d.toLocaleString('en-US', { month: 'short' });
-          months[mn] = true;
+        const monthNames = [];
+        for (let w = 0; w < 16; w += 4) {
+          const mDate = new Date(startDate);
+          mDate.setDate(startDate.getDate() + w * 7);
+          monthNames.push(mDate.toLocaleString('en-US', { month: 'short' }));
         }
-        const monthList = Object.keys(months).slice(-4);
-        heatmapMonths.innerHTML = monthList.map(m => `<span>${m}</span>`).join('');
+        heatmapMonths.innerHTML = monthNames.map(m => `<span style="color:#D8CFBC; letter-spacing:0.5px;">${m}</span>`).join('');
       }
 
-      for (let i = DAYS - 1; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(today.getDate() - i);
-        const dateKey = d.toISOString().split('T')[0]; // YYYY-MM-DD
-        const count = (dailyData || {})[dateKey] || 0;
-        const level = count === 0 ? 0 : count <= 2 ? 1 : count <= 5 ? 2 : count <= 9 ? 3 : 4;
+      const todayStr = today.toISOString().split('T')[0];
+
+      for (let i = 0; i < 112; i++) {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        const dateKey = d.toISOString().split('T')[0];
+        const isFuture = d > today;
+        const isToday = (dateKey === todayStr);
+
+        const count = isFuture ? 0 : ((dailyData || {})[dateKey] || 0);
+        const level = isFuture ? 0 : (count === 0 ? 0 : count <= 2 ? 1 : count <= 5 ? 2 : count <= 9 ? 3 : 4);
+
         const cell = document.createElement('div');
-        cell.className = `heat-cell level-${level}`;
-        const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        cell.title = `${label}: ${count > 0 ? count + ' submission' + (count > 1 ? 's' : '') : 'No activity'}`;
+        cell.className = `heat-cell level-${level}` + (isToday ? ' is-today' : '') + (isFuture ? ' is-future' : '');
+        const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+        cell.title = isFuture ? `${label} (Upcoming)` : `${label}: ${count > 0 ? count + ' submission' + (count > 1 ? 's' : '') : 'No activity'}`;
         dashHeatmap.appendChild(cell);
       }
     }
