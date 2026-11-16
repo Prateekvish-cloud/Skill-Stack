@@ -160,6 +160,64 @@
           </div>
         </div>
 
+        <!-- GitHub-Style 52-Week Unified Streak Calendar (Full Year Landscape) -->
+        <div class="panel gh-calendar-panel" style="margin-top:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+            <div>
+              <h2 style="margin:0; font-size:16px;">Unified Streak Calendar</h2>
+              <p class="panel-empty" style="font-size:12px; margin:2px 0 0 0;">Real daily submissions across LeetCode, GitHub & Codeforces</p>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span id="streakBadge" style="font-size:12px; color:#39d353; font-weight:700; background:rgba(57,211,83,0.12); padding:4px 12px; border-radius:12px; border:1px solid rgba(57,211,83,0.25);">🔥 Loading...</span>
+            </div>
+          </div>
+
+          <!-- Interactive Date Inspector Readout -->
+          <div id="heatmapActiveDay" style="display:flex; align-items:center; justify-content:space-between; background:rgba(22,27,34,0.7); border:1px solid rgba(216,207,188,0.18); border-radius:6px; padding:6px 12px; margin-bottom:12px; font-size:12px;">
+            <span id="heatDayLabel" style="color:#FFFBF4; font-weight:600;">📅 Hover or click any square to inspect activity</span>
+            <span id="heatCountBadge" style="color:#39d353; font-weight:700; background:rgba(57,211,83,0.12); padding:2px 8px; border-radius:8px;">—</span>
+          </div>
+
+          <!-- Calendar Scroll Container -->
+          <div class="gh-calendar-scroll">
+            <div style="min-width:720px;">
+              <!-- 1. Month Row: 53 columns matching the 53 weeks -->
+              <div id="heatmapMonths" class="gh-month-row" style="margin-left:34px;"></div>
+
+              <!-- 2. Grid with Day Labels (Sun-Sat) -->
+              <div style="display:flex; gap:6px;">
+                <!-- Day Labels: Row 2 = Mon, Row 4 = Wed, Row 6 = Fri -->
+                <div class="gh-day-col">
+                  <span></span>
+                  <span style="display:flex; align-items:center; justify-content:flex-end;">Mon</span>
+                  <span></span>
+                  <span style="display:flex; align-items:center; justify-content:flex-end;">Wed</span>
+                  <span></span>
+                  <span style="display:flex; align-items:center; justify-content:flex-end;">Fri</span>
+                  <span></span>
+                </div>
+
+                <!-- 53-Week Heatmap Grid -->
+                <div id="dashHeatmap" class="heatmap-grid"><div style="color:var(--muted);font-size:11px;padding:8px;">Loading full year activity...</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer Summary & Legend -->
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid rgba(216,207,188,0.12); font-size:11.5px; color:#8b949e;">
+            <span id="heatmapTotal" style="color:var(--muted);">Loading submissions...</span>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span>Less</span>
+              <span class="heat-cell level-0" style="width:11px; height:11px; border-radius:2px; display:inline-block;" title="No activity"></span>
+              <span class="heat-cell level-1" style="width:11px; height:11px; border-radius:2px; display:inline-block;" title="1-2 submissions"></span>
+              <span class="heat-cell level-2" style="width:11px; height:11px; border-radius:2px; display:inline-block;" title="3-5 submissions"></span>
+              <span class="heat-cell level-3" style="width:11px; height:11px; border-radius:2px; display:inline-block;" title="6-9 submissions"></span>
+              <span class="heat-cell level-4" style="width:11px; height:11px; border-radius:2px; display:inline-block;" title="10+ submissions"></span>
+              <span>More</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Performance Analytics Side-by-Side Charts -->
         <div class="dash-panels" id="analytics" style="margin-top:0;">
           <section class="panel">
@@ -233,53 +291,6 @@
 
       <!-- Right Sidebar Column (32% width) -->
       <div class="dash-col-side">
-
-        <!-- Unified Streak Calendar -->
-        <section class="panel">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-            <h2 style="margin:0;">Unified Streak Calendar</h2>
-            <span id="streakBadge" style="font-size:11.5px; color:#39d353; font-weight:600; background:rgba(57,211,83,0.12); padding:3px 10px; border-radius:12px; border:1px solid rgba(57,211,83,0.25);">🔥 Loading...</span>
-          </div>
-          <p class="panel-empty" style="font-size:12px; margin-bottom:14px;">Real submissions from LC, GH & CF</p>
-          
-          <!-- Interactive Day Inspector Bar -->
-          <div id="heatmapActiveDay" style="display:flex; align-items:center; justify-content:space-between; background:rgba(30,31,25,0.7); border:1px solid rgba(216,207,188,0.22); border-radius:8px; padding:6px 12px; margin-bottom:12px; font-size:12px;">
-            <span id="heatDayLabel" style="color:#FFFBF4; font-weight:600;">📅 Hover any box to inspect date</span>
-            <span id="heatCountBadge" style="color:#39d353; font-weight:700; background:rgba(57,211,83,0.12); padding:2px 8px; border-radius:10px;">—</span>
-          </div>
-
-          <!-- Structured Calendar with Day/Month Labels -->
-          <div style="display:flex; gap:8px; align-items:stretch;">
-            <!-- Day Labels (exact 7-day row alignment) -->
-            <div style="display:flex; flex-direction:column; justify-content:space-between; font-size:10px; color:#D8CFBC; font-weight:700; text-align:right; padding:30px 4px 10px 0; user-select:none; line-height:1;">
-              <span>Mon</span>
-              <span>Wed</span>
-              <span>Fri</span>
-              <span>Sun</span>
-            </div>
-
-            <div style="flex:1; min-width:0;">
-              <!-- Month Labels Header: 16 columns matching the 16 week columns -->
-              <div id="heatmapMonths" style="display:grid; grid-template-columns: repeat(16, 1fr); gap:4px; font-size:11.5px; font-weight:700; color:#FFFBF4; margin-bottom:6px; border-bottom:1px solid rgba(216,207,188,0.25); padding-bottom:5px; text-align:left;"></div>
-              <!-- Heatmap Grid -->
-              <div class="heatmap-grid" id="dashHeatmap"><div style="color:var(--muted);font-size:11px;padding:8px;">Loading real data...</div></div>
-            </div>
-          </div>
-
-          <!-- Footer Summary & Legend -->
-          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid rgba(216,207,188,0.15);">
-            <span id="heatmapTotal" style="font-size:11.5px; color:#D8CFBC; font-weight:600;">Loading submissions...</span>
-            <div style="display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--muted);">
-              <span>Less</span>
-              <span class="heat-cell level-0" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="No activity"></span>
-              <span class="heat-cell level-1" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="1-2 submissions"></span>
-              <span class="heat-cell level-2" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="3-5 submissions"></span>
-              <span class="heat-cell level-3" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="6-9 submissions"></span>
-              <span class="heat-cell level-4" style="width:11px; height:11px; display:inline-block; border-radius:2px;" title="10+ submissions"></span>
-              <span>More</span>
-            </div>
-          </div>
-        </section>
 
         <!-- Daily Challenge & Upcoming Contests Card -->
         <!-- Daily Challenge & Upcoming Contests Card -->
@@ -632,19 +643,18 @@
       dashHeatmap.innerHTML = '';
 
       const today = new Date();
-      // Align grid rows to start on Monday (Row 1: Mon ... Row 7: Sun)
-      const dayOfWeek = today.getDay(); // 0 is Sun, 1 is Mon...
-      const distToMon = (dayOfWeek + 6) % 7; // 0 for Mon, 1 for Tue... 6 for Sun
-      const currentMonday = new Date(today);
-      currentMonday.setDate(today.getDate() - distToMon);
-      currentMonday.setHours(0, 0, 0, 0);
+      // Align to Sunday of the current week (Sunday = row 0, Monday = row 1 ... Saturday = row 6)
+      const dayOfWeek = today.getDay(); // 0 is Sunday, 1 is Monday ... 6 is Saturday
+      const currentSunday = new Date(today);
+      currentSunday.setDate(today.getDate() - dayOfWeek);
+      currentSunday.setHours(0, 0, 0, 0);
 
-      const WEEKS = 16;
-      // Start 15 weeks before current Monday (16 weeks total = 112 cells)
-      const startDate = new Date(currentMonday);
-      startDate.setDate(currentMonday.getDate() - (WEEKS - 1) * 7);
+      const WEEKS = 53;
+      // 53 weeks = 371 days (full 1-year GitHub-style calendar)
+      const startDate = new Date(currentSunday);
+      startDate.setDate(currentSunday.getDate() - (WEEKS - 1) * 7);
 
-      // Month labels header: detect week where each new month actually begins
+      // Month labels header: exactly 53 columns matching the 53 week columns
       if (heatmapMonths) {
         let lastMonth = '';
         const monthList = [];
@@ -658,13 +668,13 @@
           }
         }
 
-        // Render each month label spanning its exact week columns
         let headerHtml = '';
         for (let i = 0; i < monthList.length; i++) {
           const cur = monthList[i];
           const nextWeek = (i + 1 < monthList.length) ? monthList[i + 1].week : WEEKS;
           const spanCount = nextWeek - cur.week;
-          headerHtml += `<span style="grid-column: span ${spanCount}; color:#D8CFBC; font-weight:700; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${cur.name}</span>`;
+          const text = spanCount >= 2 ? cur.name : '';
+          headerHtml += `<span style="grid-column: span ${spanCount}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${text}</span>`;
         }
         heatmapMonths.innerHTML = headerHtml;
       }
@@ -682,7 +692,8 @@
       }
       setDefaultInspector();
 
-      for (let i = 0; i < 112; i++) {
+      const TOTAL_DAYS = WEEKS * 7;
+      for (let i = 0; i < TOTAL_DAYS; i++) {
         const d = new Date(startDate);
         d.setDate(startDate.getDate() + i);
         const dateKey = d.toISOString().split('T')[0];
@@ -697,7 +708,7 @@
         const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
         cell.title = isFuture ? `${label} (Upcoming)` : `${label}: ${count > 0 ? count + ' submission' + (count > 1 ? 's' : '') : 'No activity'}`;
 
-        // Live inspector updates on hover and tap
+        // Live inspector updates on hover and click
         cell.addEventListener('mouseenter', () => {
           if (heatDayLabel) heatDayLabel.innerHTML = `📅 <strong>${label}</strong>`;
           if (heatCountBadge) heatCountBadge.textContent = isFuture ? 'Upcoming' : `${count} submission${count !== 1 ? 's' : ''}`;

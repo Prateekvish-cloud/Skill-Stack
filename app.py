@@ -3372,7 +3372,7 @@ def api_streak_calendar():
 
     daily_counts = {}  # {YYYY-MM-DD: count}
     today = datetime.utcnow().date()
-    cutoff = today - timedelta(days=180)
+    cutoff = today - timedelta(days=365)
 
     def add_date(dt_date, count=1):
         if dt_date >= cutoff:
