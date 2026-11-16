@@ -6,78 +6,25 @@
 
   <main class="dash-main">
 
-    <!-- Top Nav Bar (Matching Reference SaaS: Tabs, Search, Actions) -->
-    <!-- Top Nav Bar (Matching Reference SaaS: Tabs, Search, Actions) -->
-    <div class="top-nav-bar">
-      <div class="top-tabs-group">
-        <a href="javascript:void(0)" onclick="switchDashboardView(1)" class="nav-tab-pill active" id="tabNavOverview">
-          <span>::</span> Dashboard
-        </a>
-        <a href="javascript:void(0)" onclick="switchDashboardView(2)" class="nav-tab-pill" id="tabNavWorkflows">Workflows</a>
-        <a href="javascript:void(0)" onclick="switchDashboardView(3)" class="nav-tab-pill" id="tabNavIntegrations">Integrations</a>
-      </div>
-      <div class="top-search-bar">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <input type="text" id="topNavSearchInput" placeholder="Search developer profile, questions..." onkeyup="handleTopSearch(this.value)" />
-      </div>
-      <div class="top-actions-cluster">
-        <div class="mode-pill-toggle">
-          <button class="mode-pill-btn active" type="button" onclick="setTheme('violet')">☀️ Light</button>
-          <button class="mode-pill-btn" type="button" onclick="setTheme('violet')">🌙 Dark</button>
-        </div>
-        <div class="dash-views-switcher">
-          <button class="dash-view-pill active" id="btnView1" onclick="switchDashboardView(1)">Dashboard 1</button>
-          <button class="dash-view-pill" id="btnView2" onclick="switchDashboardView(2)">Dashboard 2</button>
-          <button class="dash-view-pill" id="btnView3" onclick="switchDashboardView(3)">Dashboard 3</button>
-        </div>
-        <a href="{{ url_for('profiles') }}" class="btn-add-board">+ Add New Board</a>
-      </div>
-    </div>
-
-    <!-- Top User Banner Card (Matching "Hi, James! 👋 What are your plans for today?") -->
+    <!-- Top User Banner Card (Full Width Header) -->
     <div class="dash-profile-card">
       <div class="dash-user-left">
-        <div class="dash-avatar-large">{{ user_initials if user_initials else (user_name[:2].upper() if user_name else 'ST') }}</div>
+        <div class="dash-avatar-large" style="background:#D8CFBC; color:#1e1f19; font-weight:800; display:flex; align-items:center; justify-content:center; border-radius:50%; width:64px; height:64px; font-size:22px;">{{ user_initials if user_initials else (user_name[:2].upper() if user_name else 'ST') }}</div>
         <div class="dash-user-info">
-          <h2>Hi, {{ user_name.split(' ')[0] if user_name else 'James' }}! 👋 <span class="plat-badge-pill" style="font-size:12px;">{{ 'Knight 🛡️' if stats.problems_solved > 500 else ('Specialist 🟢' if stats.problems_solved > 0 else 'Learner 🌱') }}</span></h2>
-          <p>What are your plans for today? Your live developer stack is synced and ready.</p>
+          <h2>{{ user_name }} <span class="plat-badge-pill" style="font-size:12px;">{{ 'Knight 🛡️' if stats.problems_solved > 500 else ('Specialist 🟢' if stats.problems_solved > 0 else 'Learner 🌱') }}</span></h2>
+          <p>{{ user_headline if user_headline else 'Student Developer' }}</p>
           <div class="dash-user-meta">
             {% if user_location %}<span>📍 {{ user_location }}</span>{% endif %}
             {% if user_college %}<span>🎓 {{ user_college }}</span>{% endif %}
-            <span style="color:#5A47FC; font-weight:700;">🔥 {{ stats.streak_days }} Days Active Streak</span>
+            <span style="color:#D8CFBC;">🔥 {{ stats.streak_days }} Days Active Streak</span>
           </div>
         </div>
       </div>
       <div class="dash-actions-right">
-        <div class="hero-mini-cluster">
-          <div class="hero-feature-card">
-            <span class="hero-feature-icon">📅</span>
-            <div>
-              <div class="hero-feature-title">Stay organized</div>
-              <div class="hero-feature-sub">Daily goals & streak</div>
-            </div>
-          </div>
-          <div class="hero-feature-card">
-            <span class="hero-feature-icon">📊</span>
-            <div>
-              <div class="hero-feature-title">Sync your stats</div>
-              <div class="hero-feature-sub">LC, GH, CC & CF Live</div>
-            </div>
-          </div>
-          <div class="hero-feature-card">
-            <span class="hero-feature-icon">🤝</span>
-            <div>
-              <div class="hero-feature-title">Collaborate & share</div>
-              <div class="hero-feature-sub">Public Portfolio ↗</div>
-            </div>
-          </div>
-        </div>
-        <div style="display:flex; gap:8px; margin-top:8px; width:100%; justify-content:flex-end; flex-wrap:wrap;">
-          <a href="/p/{{ user_name.lower().replace(' ', '') if user_name else 'profile' }}" target="_blank" class="btn-primary" style="padding:9px 16px; font-size:13px; text-decoration:none; display:inline-block;">Public Portfolio ↗</a>
-          <button class="btn-secondary" style="padding:9px 16px; font-size:13px; cursor:pointer;" onclick="openShareModal('Developer Profile', 'SkillStack Developer Milestone', '🏆')">Share</button>
-          <a href="{{ url_for('export_resume') }}" class="btn-secondary" style="padding:9px 16px; font-size:13px; text-decoration:none; display:inline-block;">Export Resume</a>
-          <a href="{{ url_for('profiles') }}" class="btn-secondary" style="padding:9px 16px; font-size:13px; text-decoration:none; display:inline-block;">Sync Handles</a>
-        </div>
+        <a href="/p/{{ user_name.lower().replace(' ', '') if user_name else 'profile' }}" target="_blank" class="btn-primary" style="padding:9px 16px; font-size:13px; text-decoration:none; display:inline-block;">Public Portfolio ↗</a>
+        <button class="btn-secondary" style="padding:9px 16px; font-size:13px; cursor:pointer;" onclick="openShareModal('Developer Profile', 'SkillStack Developer Milestone', '🏆')">Share</button>
+        <a href="{{ url_for('export_resume') }}" class="btn-secondary" style="padding:9px 16px; font-size:13px; text-decoration:none; display:inline-block;">Export Resume</a>
+        <a href="{{ url_for('profiles') }}" class="btn-secondary" style="padding:9px 16px; font-size:13px; text-decoration:none; display:inline-block;">Sync Handles</a>
       </div>
     </div>
 
@@ -153,315 +100,6 @@
     {% endif %}
 
 
-    <!-- ====================================================================
-         DASHBOARD VIEW 1: IMAGE 2 MODERN PURPLE SAAS BENTO GRID
-         ==================================================================== -->
-    <div id="dashViewOverview" class="dash-view-container">
-
-      <!-- 3-Column Bento SaaS Grid (Direct Match to Image 2) -->
-      <div class="dash-bento-grid">
-
-        <!-- Column 1 (Left): Notifications & Today's Tasks -->
-        <div class="bento-col">
-          
-          <!-- Notifications Card -->
-          <div class="bento-card">
-            <div class="bento-header">
-              <h3 class="bento-title">
-                <span>Notifications</span>
-              </h3>
-              <div class="bento-header-actions">
-                <span class="plat-badge-pill" style="font-size:10.5px;">Live</span>
-                <button type="button" class="bento-dots-btn">•••</button>
-              </div>
-            </div>
-            <div class="notif-list">
-              <div class="notif-item">
-                <div class="notif-icon-box notif-icon-purple">📅</div>
-                <div class="notif-content">
-                  <div class="notif-heading">
-                    <span>Upcoming Contest</span>
-                    <span style="font-size:10px; color:#5A47FC; font-weight:700;">Rated</span>
-                  </div>
-                  <div class="notif-sub">LeetCode Weekly Contest • Starts in 2h 15m</div>
-                  <div class="notif-time">Today, 08:00 PM • Global Rank Impact</div>
-                </div>
-              </div>
-
-              <div class="notif-item">
-                <div class="notif-icon-box notif-icon-emerald">⚡</div>
-                <div class="notif-content">
-                  <div class="notif-heading">
-                    <span>Platform Synced</span>
-                    <span style="font-size:10px; color:#10B981; font-weight:700;">+42 pts</span>
-                  </div>
-                  <div class="notif-sub">Codeforces & CodeChef ratings updated</div>
-                  <div class="notif-time">10 mins ago • Auto Sync Crawler</div>
-                </div>
-              </div>
-
-              <div class="notif-item">
-                <div class="notif-icon-box notif-icon-amber">🏆</div>
-                <div class="notif-content">
-                  <div class="notif-heading">
-                    <span>Milestone Unlocked</span>
-                    <span style="font-size:10px; color:#D97706; font-weight:700;">Knight</span>
-                  </div>
-                  <div class="notif-sub">{{ stats.problems_solved }} Total problems solved across 6 platforms</div>
-                  <div class="notif-time">Top 5% active coder this week</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Today's Tasks & Problem Checklist -->
-          <div class="bento-card">
-            <div class="bento-header">
-              <h3 class="bento-title">
-                <span>Today tasks</span>
-              </h3>
-              <div class="task-avatar-stack">
-                <span>{{ user_initials }}</span>
-                <span style="background:#10B981;">LC</span>
-                <span style="background:#F59E0B;">CF</span>
-              </div>
-              <span class="task-counter-pill">3 of 5 done</span>
-            </div>
-
-            <div class="task-list">
-              <div class="task-item">
-                <input type="checkbox" class="task-checkbox" checked />
-                <div class="task-info">
-                  <div class="task-title" style="text-decoration:line-through; opacity:0.75;">Conduct research on Graphs & DP</div>
-                  <div class="task-meta">
-                    <span class="diff-badge medium">Medium</span>
-                    <span>LeetCode #200</span>
-                    <span style="color:#10B981;">✓ Solved</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="task-item">
-                <input type="checkbox" class="task-checkbox" id="taskDailyChallenge" />
-                <div class="task-info">
-                  <div class="task-title">Daily: {{ daily_challenge.title }}</div>
-                  <div class="task-meta">
-                    <span class="diff-badge {{ daily_challenge.diff.lower() }}">{{ daily_challenge.diff }}</span>
-                    <span>{{ daily_challenge.topic }}</span>
-                    <a href="{{ daily_challenge.url }}" target="_blank" style="color:#5A47FC; font-weight:700; text-decoration:none;">Open ↗</a>
-                  </div>
-                </div>
-              </div>
-
-              <div class="task-item">
-                <input type="checkbox" class="task-checkbox" checked />
-                <div class="task-info">
-                  <div class="task-title" style="text-decoration:line-through; opacity:0.75;">Sync GitHub repositories & stars</div>
-                  <div class="task-meta">
-                    <span class="diff-badge easy">Easy</span>
-                    <span>6 Repositories</span>
-                    <span style="color:#10B981;">✓ Synced</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="task-item">
-                <input type="checkbox" class="task-checkbox" />
-                <div class="task-info">
-                  <div class="task-title">Codeforces Div 2 speed contest practice</div>
-                  <div class="task-meta">
-                    <span class="diff-badge hard">Hard</span>
-                    <span>Speed Sprint</span>
-                    <span style="color:var(--muted);">Pending</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Column 2 (Center): Assignments & Big Purple Featured Card -->
-        <div class="bento-col">
-          
-          <!-- Assignments Card -->
-          <div class="bento-card">
-            <div class="bento-header">
-              <h3 class="bento-title">
-                <span>Assignments</span>
-              </h3>
-              <div class="bento-header-actions">
-                <span class="status-chip progress">Active Sprint</span>
-                <button type="button" class="bento-dots-btn">•••</button>
-              </div>
-            </div>
-
-            <div class="assignment-card-inner">
-              <div class="assignment-title">Design algorithm practice for a new product</div>
-              <p style="font-size:12px; color:var(--ink-subtle); margin:0 0 8px;">
-                Complete NeetCode 150 Core DSA patterns across Arrays, Trees, Dynamic Programming and Graphs.
-              </p>
-              <div style="background:#EEF0F8; height:7px; border-radius:9999px; overflow:hidden; margin:8px 0;">
-                <div style="background:#5A47FC; width:74%; height:100%; border-radius:9999px;"></div>
-              </div>
-              <div class="assignment-meta-row">
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <span class="tag-pill">DSA Sprint</span>
-                  <span class="tag-pill">DP Patterns</span>
-                </div>
-                <div style="font-size:11.5px; font-weight:700; color:#5A47FC;">74% Complete</div>
-              </div>
-            </div>
-
-            <!-- Platform Solved Summary in Center Column -->
-            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:14px;">
-              <div style="background:#F8F9FE; border:1px solid var(--border); border-radius:12px; padding:12px; text-align:center;">
-                <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">LeetCode</div>
-                <div style="font-size:18px; font-weight:800; color:#5A47FC; margin-top:2px;">{{ stats.problems_solved }}</div>
-                <div style="font-size:10px; color:#10B981; font-weight:600;">Synced ✓</div>
-              </div>
-              <div style="background:#F8F9FE; border:1px solid var(--border); border-radius:12px; padding:12px; text-align:center;">
-                <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Streak</div>
-                <div style="font-size:18px; font-weight:800; color:#F59E0B; margin-top:2px;">{{ stats.streak_days }} Days</div>
-                <div style="font-size:10px; color:#F59E0B; font-weight:600;">Active 🔥</div>
-              </div>
-              <div style="background:#F8F9FE; border:1px solid var(--border); border-radius:12px; padding:12px; text-align:center;">
-                <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Score</div>
-                <div style="font-size:18px; font-weight:800; color:var(--ink); margin-top:2px;">{{ stats.unified_score }}</div>
-                <div style="font-size:10px; color:var(--muted);">Global pts</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Featured Royal Purple Card (Matching Big Indigo Box in Image 2) -->
-          <div class="featured-purple-card">
-            <div class="featured-illustration-wrap">
-              🚀
-            </div>
-            <h3>SkillStack Pro Developer</h3>
-            <p>
-              You're solving consistently across multiple platforms. Share your verified multi-platform developer profile with recruiters and peers.
-            </p>
-            <a href="/p/{{ user_name.lower().replace(' ', '') if user_name else 'profile' }}" target="_blank" class="featured-cta-btn">
-              View Public Portfolio ↗
-            </a>
-          </div>
-
-        </div>
-
-        <!-- Column 3 (Right): Calendar & Circular Gauges -->
-        <div class="bento-col">
-          
-          <!-- Monthly Calendar & Upcoming Agenda -->
-          <div class="bento-card">
-            <div class="calendar-header">
-              <span class="calendar-month-title">October 2026</span>
-              <div class="calendar-arrows">
-                <button type="button" class="cal-arrow-btn">‹</button>
-                <button type="button" class="cal-arrow-btn">›</button>
-              </div>
-            </div>
-
-            <!-- 7-Day Calendar Row -->
-            <div class="calendar-days-row">
-              <div class="cal-day-cell"><span>M</span><span>19</span></div>
-              <div class="cal-day-cell"><span>T</span><span>20</span></div>
-              <div class="cal-day-cell"><span>W</span><span>21</span></div>
-              <div class="cal-day-cell"><span>T</span><span>22</span></div>
-              <div class="cal-day-cell"><span>F</span><span>23</span></div>
-              <div class="cal-day-cell active"><span>S</span><span>24</span></div>
-              <div class="cal-day-cell"><span>S</span><span>25</span></div>
-            </div>
-
-            <!-- Agenda Schedule -->
-            <div class="agenda-list">
-              <div class="agenda-item">
-                <div class="agenda-icon-box" style="background:#ECEBFE; color:#5A47FC;">👥</div>
-                <div class="agenda-details">
-                  <div class="agenda-name">Team DSA & Mock Interview</div>
-                  <div class="agenda-time">10:00 - 11:30 AM</div>
-                </div>
-              </div>
-
-              <div class="agenda-item">
-                <div class="agenda-icon-box" style="background:#ECFEFF; color:#06B6D4;">🏆</div>
-                <div class="agenda-details">
-                  <div class="agenda-name">LeetCode Biweekly Contest</div>
-                  <div class="agenda-time">02:00 - 03:30 PM</div>
-                </div>
-              </div>
-
-              <div class="agenda-item">
-                <div class="agenda-icon-box" style="background:#FEF3C7; color:#D97706;">⚡</div>
-                <div class="agenda-details">
-                  <div class="agenda-name">Codeforces Div 2 Round</div>
-                  <div class="agenda-time">07:30 - 09:30 PM</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Circular Progress Donut Gauges -->
-          <div class="bento-card">
-            <div class="bento-header" style="margin-bottom:12px;">
-              <h3 class="bento-title">Performance Analytics</h3>
-              <span class="plat-badge-pill" style="font-size:10px;">Live Gauges</span>
-            </div>
-            
-            <div class="gauges-container">
-              <!-- Gauge 1 -->
-              <div class="gauge-item">
-                <div class="circular-gauge-wrap">
-                  <svg viewBox="0 0 84 84">
-                    <circle cx="42" cy="42" r="36" class="gauge-bg-circle"></circle>
-                    <circle cx="42" cy="42" r="36" class="gauge-prog-circle purple" style="stroke-dashoffset: 50;"></circle>
-                  </svg>
-                  <div class="gauge-percentage-label">78%</div>
-                </div>
-                <div class="gauge-title">Problem Solving</div>
-                <div class="gauge-sub">Daily Target Quota</div>
-              </div>
-
-              <!-- Gauge 2 -->
-              <div class="gauge-item">
-                <div class="circular-gauge-wrap">
-                  <svg viewBox="0 0 84 84">
-                    <circle cx="42" cy="42" r="36" class="gauge-bg-circle"></circle>
-                    <circle cx="42" cy="42" r="36" class="gauge-prog-circle amber" style="stroke-dashoffset: 18;"></circle>
-                  </svg>
-                  <div class="gauge-percentage-label">92%</div>
-                </div>
-                <div class="gauge-title">Consistency</div>
-                <div class="gauge-sub">Streak & Velocity</div>
-              </div>
-            </div>
-
-            <!-- Kudos / Global Rank Mini Card -->
-            <div class="kudos-card">
-              <div class="kudos-left">
-                <div class="kudos-heart-icon">❤️</div>
-                <div class="kudos-text">
-                  <h4>Global Standing</h4>
-                  <p>Top 4.2% among connected coders</p>
-                </div>
-              </div>
-              <span style="font-size:12px; font-weight:800; color:#5A47FC; background:#ECEBFE; padding:4px 10px; border-radius:9999px;">
-                {{ stats.leaderboard_rank }}
-              </span>
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-    <!-- ====================================================================
-         DASHBOARD VIEW 2 & 3: MULTI-PLATFORM DEEP ANALYTICS & PLATFORMS
-         ==================================================================== -->
-    <div id="dashViewAnalytics" class="dash-view-container" style="display:none;">
-
     <!-- 2-Column Dashboard Grid: Fills full width and avoids huge vertical scroll -->
     <div class="dash-body-grid">
 
@@ -484,18 +122,15 @@
           </div>
           <div class="stat-card">
             <p class="stat-label">Active Streak</p>
-            <p class="stat-value" style="color:#5A47FC;">{{ stats.streak_days }} Days 🔥</p>
-            <span style="font-size:11.5px; color:var(--muted); font-weight:500;">Consistent daily submissions</span>
+            <p class="stat-value" style="color:#D8CFBC; text-shadow:0 0 10px rgba(216,207,188,0.3);">{{ stats.streak_days }} Days 🔥</p>
           </div>
           <div class="stat-card">
             <p class="stat-label">Unified Score</p>
             <p class="stat-value accent">{{ stats.unified_score }} pts</p>
-            <span style="font-size:11.5px; color:var(--muted); font-weight:500;">Cross-platform rating metric</span>
           </div>
           <div class="stat-card">
             <p class="stat-label">Global Rank</p>
             <p class="stat-value">{{ stats.leaderboard_rank }}</p>
-            <span style="font-size:11.5px; color:var(--muted); font-weight:500;">Institutional leaderboard</span>
           </div>
         </div>
 
@@ -509,7 +144,7 @@
                 <div class="platform-icon" style="background:{{ p.bg }}; color:{{ p.color }};">{{ p.initial }}</div>
                 <div>
                   <div class="platform-name">{{ p.name }}</div>
-                  <div class="platform-status" style="font-weight:600; color:{{ 'var(--ink)' if p.connected else 'var(--muted)' }};">
+                  <div class="platform-status" style="font-weight:600; color:{{ '#D8CFBC' if p.connected else 'var(--muted)' }};">
                     {{ p.rating }}
                   </div>
                 </div>
@@ -598,17 +233,6 @@
 
       <!-- Right Sidebar Column (32% width) -->
       <div class="dash-col-side">
-
-        <!-- Royal Purple Promo Card (Matching "Go premium!" from reference) -->
-        <div class="promo-card">
-          <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:12px;">
-            <span style="font-size:26px;">⚡</span>
-            <span style="font-size:11px; font-weight:700; background:rgba(255,255,255,0.22); padding:3px 10px; border-radius:12px;">SCORE: {{ stats.unified_score }} PTS</span>
-          </div>
-          <h3>Unified Developer Rank</h3>
-          <p>Boost your global standing by syncing LeetCode, GitHub and Codeforces daily. Earn achievement badges and challenge peers.</p>
-          <a href="{{ url_for('leaderboard') }}" class="promo-btn">View Leaderboard →</a>
-        </div>
 
         <!-- Unified Streak Calendar -->
         <section class="panel">
@@ -713,7 +337,6 @@
       </div>
 
     </div>
-    </div> <!-- Close dashViewAnalytics -->
 
   </main>
 </div>
@@ -817,56 +440,6 @@
 
 {% block scripts %}
 <script>
-  function switchDashboardView(n) {
-    var vOverview = document.getElementById('dashViewOverview');
-    var vAnalytics = document.getElementById('dashViewAnalytics');
-    
-    var b1 = document.getElementById('btnView1');
-    var b2 = document.getElementById('btnView2');
-    var b3 = document.getElementById('btnView3');
-    var tOverview = document.getElementById('tabNavOverview');
-    var tWorkflows = document.getElementById('tabNavWorkflows');
-    var tIntegrations = document.getElementById('tabNavIntegrations');
-
-    if (b1) b1.classList.remove('active');
-    if (b2) b2.classList.remove('active');
-    if (b3) b3.classList.remove('active');
-    if (tOverview) tOverview.classList.remove('active');
-    if (tWorkflows) tWorkflows.classList.remove('active');
-    if (tIntegrations) tIntegrations.classList.remove('active');
-
-    if (n === 1) {
-      if (vOverview) vOverview.style.display = 'block';
-      if (vAnalytics) vAnalytics.style.display = 'none';
-      if (b1) b1.classList.add('active');
-      if (tOverview) tOverview.classList.add('active');
-    } else {
-      if (vOverview) vOverview.style.display = 'none';
-      if (vAnalytics) vAnalytics.style.display = 'block';
-      if (n === 2) {
-        if (b2) b2.classList.add('active');
-        if (tWorkflows) tWorkflows.classList.add('active');
-      } else {
-        if (b3) b3.classList.add('active');
-        if (tIntegrations) tIntegrations.classList.add('active');
-      }
-    }
-  }
-
-  function handleTopSearch(query) {
-    query = (query || '').toLowerCase().trim();
-    if (!query) {
-      document.querySelectorAll('.task-item, .platform-card, .notif-item, .agenda-item').forEach(function(el) {
-        el.style.display = '';
-      });
-      return;
-    }
-    document.querySelectorAll('.task-item, .platform-card, .notif-item, .agenda-item').forEach(function(el) {
-      var text = el.textContent.toLowerCase();
-      el.style.display = text.includes(query) ? '' : 'none';
-    });
-  }
-
   function openAddProjectModal() {
     document.getElementById('projStatusMsg').style.display = 'none';
     document.getElementById('addProjectModal').classList.add('active');

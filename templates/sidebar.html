@@ -2,7 +2,7 @@
   <a href="{{ url_for('dashboard') }}" class="brand" style="text-decoration:none;">Skill<span>Stack</span></a>
   <div style="display:flex; align-items:center; gap:10px;">
     <a href="{{ url_for('user_profile') }}" style="text-decoration:none;">
-      <div style="background: linear-gradient(135deg, #6366F1, #8B5CF6); color: #FFF; font-weight: 800; display: flex; align-items: center; justify-content: center; border-radius: 50%; width: 34px; height: 34px; font-size: 13px; box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);">
+      <div style="background:#D8CFBC; color:#1e1f19; font-weight:800; display:flex; align-items:center; justify-content:center; border-radius:50%; width:32px; height:32px; font-size:12px;">
         {{ user_initials if user_initials else (user_name[:2].upper() if user_name else 'ST') }}
       </div>
     </a>
@@ -59,17 +59,7 @@
 </div>
 
 <aside class="sidebar">
-  <div style="display:flex; align-items:center; gap:12px; padding: 0 4px 18px;">
-    <div style="width:40px; height:40px; border-radius:12px; background:#FFFFFF; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,0.12); flex-shrink:0;">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5A47FC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
-        <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
-        <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
-        <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
-      </svg>
-    </div>
-    <a href="{{ url_for('dashboard') }}" class="brand" style="text-decoration:none; padding:0; font-size:20px;">Skill<span>Stack</span></a>
-  </div>
+  <a href="{{ url_for('dashboard') }}" class="brand" style="text-decoration:none; display:block;">Skill<span>Stack</span></a>
   
   <div class="sidebar-section-label">Menu</div>
   <nav class="sidebar-nav">
@@ -153,22 +143,21 @@
 
 
   <div class="sidebar-footer">
-    <a href="{{ url_for('user_profile') }}" class="sidebar-user-box" style="text-decoration:none;">
-      <div class="sidebar-user-avatar">{{ user_initials if user_initials else (user_name[:2].upper() if user_name else 'ST') }}</div>
+    <a href="{{ url_for('user_profile') }}" class="sidebar-user-box" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:10px;">
+      <div class="sidebar-user-avatar" style="background:#D8CFBC; color:#1e1f19; font-weight:800; display:flex; align-items:center; justify-content:center; border-radius:50%; width:34px; height:34px;">{{ user_initials if user_initials else (user_name[:2].upper() if user_name else 'ST') }}</div>
       <div class="sidebar-user-details">
         <div class="sidebar-user-name">{{ user_name }}</div>
         <div class="sidebar-user-sub">Student Developer</div>
       </div>
     </a>
 
-    <a href="{{ url_for('logout') }}" class="logout-btn">Log out</a>
+    <a href="{{ url_for('logout') }}" class="btn-ghost logout-btn" style="display:block; text-align:center; margin-top:8px;">Log out</a>
   </div>
 </aside>
 
 <script>
   (function() {
-    var curTheme = localStorage.getItem('skillstack_theme') || 'violet';
-    if (curTheme === 'gold') curTheme = 'violet';
+    var curTheme = localStorage.getItem('skillstack_theme') || 'gold';
     document.querySelectorAll('.theme-swatch').forEach(function(el) {
       if (el.getAttribute('data-swatch') === curTheme) el.classList.add('active');
     });

@@ -26,17 +26,17 @@
               <div class="platform-icon" style="background:{{ p.bg }}; color:{{ p.color }};">{{ p.initial }}</div>
               <strong>{{ p.name }}</strong>
             </div>
-            <span class="plat-badge-pill" style="color:{{ '#059669' if p.connected else 'var(--muted)' }}; background:{{ '#ECFDF5' if p.connected else '#F4F5FA' }}; border-color:{{ '#A7F3D0' if p.connected else 'var(--border)' }};">
+            <span class="plat-badge-pill" style="color:{{ '#D8CFBC' if p.connected else 'var(--muted)' }}; border-color:{{ 'rgba(216,207,188,0.3)' if p.connected else 'var(--border)' }};">
               {{ 'Active ✓' if p.connected else 'Not Linked' }}
             </span>
           </div>
           
           <div style="font-size:13px; color:var(--muted); margin-bottom:4px;">Handle: <strong style="color:var(--ink);">{{ p.handle }}</strong></div>
-          <div class="plat-big-rating" style="font-size:22px; color:var(--ink);">{{ p.rating }}</div>
+          <div class="plat-big-rating" style="font-size:22px;">{{ p.rating }}</div>
           <div class="plat-sub-info">{{ p.solved }}</div>
         </div>
 
-        <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="border-top:1px solid rgba(86,84,73,0.4); padding-top:12px; margin-top:12px; display:flex; justify-content:space-between; align-items:center;">
           <span style="font-size:11.5px; color:var(--muted);">Synced {{ p.last_synced }}</span>
           <button class="btn-secondary" style="font-size:12px; padding:5px 12px;" onclick="openConnectModal('{{ p.name }}', '{{ p.handle }}')">
             {{ 'Edit Handle' if p.connected else '+ Connect' }}
