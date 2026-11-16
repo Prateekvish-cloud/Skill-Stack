@@ -494,32 +494,6 @@ def init_db_tables():
             except Exception:
                 pass
 
-        # One-time migration: wipe all legacy database accounts/data across cloud DB as requested
-        try:
-            cursor.execute("CREATE TABLE IF NOT EXISTS schema_version (version INT)")
-            cursor.execute("SELECT version FROM schema_version LIMIT 1")
-            row = cursor.fetchone()
-            curr_ver = (row[0] if isinstance(row, (tuple, list)) else (row.get("version", 0) if isinstance(row, dict) else 0)) if row else 0
-            if curr_ver < 3:
-                tables_to_clear = [
-                    "user_solved_problems", "coding_profiles", "user_custom_badges",
-                    "badges", "projects", "sync_logs", "nudges", "announcements",
-                    "assignments", "users"
-                ]
-                for tbl in tables_to_clear:
-                    try:
-                        cursor.execute(f"DELETE FROM {tbl}")
-                    except Exception:
-                        pass
-                if row:
-                    cursor.execute("UPDATE schema_version SET version = 3")
-                else:
-                    cursor.execute("INSERT INTO schema_version (version) VALUES (3)")
-                conn.commit()
-                print(">>> Migration 3: Legacy user data wiped cleanly <<<")
-        except Exception as mig_err:
-            print(f"Notice schema migration: {mig_err}")
-
         # Ensure schema updates are committed
         conn.commit()
 
@@ -1221,6 +1195,14 @@ def login():
             matched_user = None
             for u in users:
                 pw_hash = u.get("password_hash") or ""
+                # If account was restored without a pre-set password, adopt the password entered
+                if not pw_hash:
+                    new_hash = generate_password_hash(password)
+                    db_query("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, u["id"]), commit=True)
+                    backup_user_state(u["email"], password_hash=new_hash)
+                    u["password_hash"] = new_hash
+                    matched_user = u
+                    break
                 if verify_user_password(pw_hash, password):
                     matched_user = u
                     break
