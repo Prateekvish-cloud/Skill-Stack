@@ -1547,6 +1547,54 @@ def get_live_upcoming_contests():
     except Exception as e:
         print("Notice fetching CodeChef live contests:", e)
 
+    # 4. HackerRank Live REST API
+    try:
+        url = 'https://www.hackerrank.com/rest/contests/upcoming?limit=4'
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            models = [c for c in data.get('models', []) if c.get('epoch_starttime', 0) > now_ts]
+            for c in models[:2]:
+                start_ts = c.get('epoch_starttime', 0)
+                diff_sec = max(0, start_ts - now_ts)
+                days = diff_sec // 86400
+                hours = (diff_sec % 86400) // 3600
+                mins = (diff_sec % 3600) // 60
+                dt_str = datetime.fromtimestamp(start_ts).strftime("%a, %b %d • %I:%M %p IST")
+                slug = c.get('slug', '')
+                upcoming.append({
+                    "id": f"hr_{slug}",
+                    "platform": "hackerrank",
+                    "plat_label": "HackerRank",
+                    "name": c.get('name'),
+                    "date": dt_str,
+                    "url": f"https://www.hackerrank.com/contests/{slug}",
+                    "countdown": f"{days}d {hours}h {mins}m"
+                })
+    except Exception as e:
+        print("Notice fetching HackerRank live contests:", e)
+
+    # 5. GeeksforGeeks Live REST API
+    try:
+        url = 'https://practiceapi.geeksforgeeks.org/api/v1/events/?type=contest&page_number=1&sub_type=all'
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            gfg_upcoming = data.get('results', {}).get('upcoming', [])
+            for c in gfg_upcoming[:2]:
+                c_slug = c.get('slug', '')
+                upcoming.append({
+                    "id": f"gfg_{c_slug}",
+                    "platform": "geeksforgeeks",
+                    "plat_label": "GeeksforGeeks",
+                    "name": c.get('name', ''),
+                    "date": c.get('start_time', ''),
+                    "url": f"https://practice.geeksforgeeks.org/contest/{c_slug}",
+                    "countdown": "Upcoming"
+                })
+    except Exception as e:
+        print("Notice fetching GeeksforGeeks live contests:", e)
+
     # Fallback if APIs are offline
     if not upcoming:
         now = datetime.now()
@@ -1577,6 +1625,88 @@ def get_live_upcoming_contests():
         return CONTESTS_CACHE["data"]
 
     return upcoming
+
+
+DAILY_CHALLENGE_CACHE = {"timestamp": 0, "data": None}
+
+def get_live_daily_challenge():
+    """Fetch 100% real live Problem of the Day from LeetCode GraphQL or GeeksforGeeks official POTD API."""
+    global DAILY_CHALLENGE_CACHE
+    now_ts = int(datetime.utcnow().timestamp())
+
+    if DAILY_CHALLENGE_CACHE.get("data") and (now_ts - DAILY_CHALLENGE_CACHE.get("timestamp", 0)) < 1800:
+        return DAILY_CHALLENGE_CACHE["data"]
+
+    # 1. Official LeetCode GraphQL API
+    try:
+        url = 'https://leetcode.com/graphql'
+        query = '''query questionOfToday {
+            activeDailyCodingChallengeQuestion {
+                date
+                link
+                question {
+                    questionFrontendId
+                    title
+                    titleSlug
+                    difficulty
+                    topicTags { name }
+                }
+            }
+        }'''
+        req = urllib.request.Request(
+            url,
+            data=json.dumps({'query': query}).encode('utf-8'),
+            headers={
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Referer': 'https://leetcode.com/problemset/all/',
+                'Origin': 'https://leetcode.com'
+            }
+        )
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            data = json.loads(resp.read().decode('utf-8')).get('data', {}).get('activeDailyCodingChallengeQuestion', {})
+            q = data.get('question', {})
+            if q.get('title'):
+                tags = [t.get('name') for t in q.get('topicTags', []) if t.get('name')]
+                topic_str = ' • '.join(tags[:2]) if tags else 'Algorithm'
+                slug = q.get('titleSlug', '')
+                link = data.get('link') or f"/problems/{slug}/"
+                res = {
+                    'platform': 'LeetCode',
+                    'num': q.get('questionFrontendId', ''),
+                    'title': q.get('title'),
+                    'diff': q.get('difficulty', 'Medium'),
+                    'topic': topic_str,
+                    'slug': slug,
+                    'url': f'https://leetcode.com{link}'
+                }
+                DAILY_CHALLENGE_CACHE = {"timestamp": now_ts, "data": res}
+                return res
+    except Exception as e:
+        print("Notice fetching LeetCode live daily challenge:", e)
+
+    # 2. Official GeeksforGeeks POTD API
+    try:
+        url = 'https://practiceapi.geeksforgeeks.org/api/v1/problems-of-day/problem/today/'
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            if data.get('problem_name'):
+                res = {
+                    'platform': 'GeeksforGeeks',
+                    'num': 'POTD',
+                    'title': data.get('problem_name'),
+                    'diff': data.get('difficulty', 'Medium'),
+                    'topic': 'Problem of the Day',
+                    'slug': data.get('problem_name', '').lower().replace(' ', '-'),
+                    'url': data.get('problem_url', 'https://practice.geeksforgeeks.org/problem-of-the-day')
+                }
+                DAILY_CHALLENGE_CACHE = {"timestamp": now_ts, "data": res}
+                return res
+    except Exception as e:
+        print("Notice fetching GeeksforGeeks live POTD:", e)
+
+    return DAILY_CHALLENGE_CACHE.get("data")
 
 
 @app.route("/dashboard")
@@ -1685,25 +1815,27 @@ def dashboard():
         "hr": [int(hr_solved * 0.2), int(hr_solved * 0.4), int(hr_solved * 0.65), int(hr_solved * 0.85), hr_solved]
     }
 
-    # Dynamic Daily Challenge (skip solved problems) & Upcoming Contests
+    # Dynamic Live Daily Challenge (LeetCode GraphQL or GFG POTD) & Fallback Candidates
     solved_titles = set((r.get('title') or '').lower() for r in solved_rows)
     solved_ids = set((r.get('problem_id') or '').lower() for r in solved_rows)
 
     candidate_challenges = [
-        {"num": "15", "title": "3Sum", "diff": "Medium", "topic": "Two Pointers", "slug": "3sum", "url": "https://leetcode.com/problems/3sum/"},
-        {"num": "200", "title": "Number of Islands", "diff": "Medium", "topic": "Graphs / BFS", "slug": "number-of-islands", "url": "https://leetcode.com/problems/number-of-islands/"},
-        {"num": "3", "title": "Longest Substring Without Repeating Characters", "diff": "Medium", "topic": "Sliding Window", "slug": "longest-substring-without-repeating-characters", "url": "https://leetcode.com/problems/longest-substring-without-repeating-characters/"},
-        {"num": "56", "title": "Merge Intervals", "diff": "Medium", "topic": "Arrays & Sorting", "slug": "merge-intervals", "url": "https://leetcode.com/problems/merge-intervals/"},
-        {"num": "33", "title": "Search in Rotated Sorted Array", "diff": "Medium", "topic": "Binary Search", "slug": "search-in-rotated-sorted-array", "url": "https://leetcode.com/problems/search-in-rotated-sorted-array/"},
-        {"num": "98", "title": "Validate Binary Search Tree", "diff": "Medium", "topic": "Trees & DFS", "slug": "validate-binary-search-tree", "url": "https://leetcode.com/problems/validate-binary-search-tree/"},
-        {"num": "198", "title": "House Robber", "diff": "Medium", "topic": "Dynamic Programming", "slug": "house-robber", "url": "https://leetcode.com/problems/house-robber/"}
+        {"platform": "LeetCode", "num": "15", "title": "3Sum", "diff": "Medium", "topic": "Two Pointers", "slug": "3sum", "url": "https://leetcode.com/problems/3sum/"},
+        {"platform": "LeetCode", "num": "200", "title": "Number of Islands", "diff": "Medium", "topic": "Graphs / BFS", "slug": "number-of-islands", "url": "https://leetcode.com/problems/number-of-islands/"},
+        {"platform": "LeetCode", "num": "3", "title": "Longest Substring Without Repeating Characters", "diff": "Medium", "topic": "Sliding Window", "slug": "longest-substring-without-repeating-characters", "url": "https://leetcode.com/problems/longest-substring-without-repeating-characters/"},
+        {"platform": "LeetCode", "num": "56", "title": "Merge Intervals", "diff": "Medium", "topic": "Arrays & Sorting", "slug": "merge-intervals", "url": "https://leetcode.com/problems/merge-intervals/"},
+        {"platform": "LeetCode", "num": "33", "title": "Search in Rotated Sorted Array", "diff": "Medium", "topic": "Binary Search", "slug": "search-in-rotated-sorted-array", "url": "https://leetcode.com/problems/search-in-rotated-sorted-array/"},
+        {"platform": "LeetCode", "num": "98", "title": "Validate Binary Search Tree", "diff": "Medium", "topic": "Trees & DFS", "slug": "validate-binary-search-tree", "url": "https://leetcode.com/problems/validate-binary-search-tree/"},
+        {"platform": "LeetCode", "num": "198", "title": "House Robber", "diff": "Medium", "topic": "Dynamic Programming", "slug": "house-robber", "url": "https://leetcode.com/problems/house-robber/"}
     ]
 
-    daily_challenge = None
-    for c in candidate_challenges:
-        if c["title"].lower() not in solved_titles and c["slug"] not in solved_ids:
-            daily_challenge = c
-            break
+    daily_challenge = get_live_daily_challenge()
+    if not daily_challenge or daily_challenge.get("title", "").lower() in solved_titles:
+        daily_challenge = None
+        for c in candidate_challenges:
+            if c["title"].lower() not in solved_titles and c["slug"] not in solved_ids:
+                daily_challenge = c
+                break
 
     if not daily_challenge:
         daily_challenge = candidate_challenges[0]

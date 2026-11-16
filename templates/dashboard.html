@@ -304,7 +304,7 @@
           {% if daily_challenge %}
           <div style="background:rgba(35,36,28,0.7); padding:12px 14px; border-radius:12px; border:1px solid rgba(216,207,188,0.3); margin-bottom:14px; display:flex; align-items:center; justify-content:space-between;">
             <div>
-              <div style="font-weight:700; font-size:13px; color:var(--ink);">LeetCode #{{ daily_challenge.num }}: {{ daily_challenge.title }}</div>
+              <div style="font-weight:700; font-size:13px; color:var(--ink);">{{ daily_challenge.platform or 'LeetCode' }} {% if daily_challenge.num and daily_challenge.num != 'POTD' %}#{{ daily_challenge.num }}: {% elif daily_challenge.num == 'POTD' %}POTD: {% endif %}{{ daily_challenge.title }}</div>
               <div style="font-size:11px; color:var(--muted);">{{ daily_challenge.diff }} • {{ daily_challenge.topic }}</div>
             </div>
             <a href="{{ daily_challenge.url }}" target="_blank" class="btn-primary" style="padding:6px 12px; font-size:11.5px; text-decoration:none;">Solve</a>
@@ -316,7 +316,7 @@
             {% for c in upcoming_contests %}
             <div class="contest-widget-item" style="background:rgba(30,31,25,0.6); padding:10px 12px; border-radius:10px; border:1px solid rgba(86,84,73,0.3);">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <span class="plat-badge-pill" style="font-size:10.5px; background:{{ 'rgba(255,167,38,0.15)' if c.platform == 'leetcode' else ('rgba(224,80,90,0.15)' if c.platform == 'codeforces' else ('rgba(201,130,15,0.15)' if c.platform == 'codechef' else 'rgba(46,200,102,0.15)')) }}; color:{{ '#ffa726' if c.platform == 'leetcode' else ('#e0505a' if c.platform == 'codeforces' else ('#c9820f' if c.platform == 'codechef' else '#2ec866')) }};">{{ c.plat_label }}</span>
+                <span class="plat-badge-pill" style="font-size:10.5px; background:{{ 'rgba(255,167,38,0.15)' if c.platform == 'leetcode' else ('rgba(224,80,90,0.15)' if c.platform == 'codeforces' else ('rgba(201,130,15,0.15)' if c.platform == 'codechef' else ('rgba(0,234,100,0.15)' if c.platform == 'hackerrank' else 'rgba(46,200,102,0.15)'))) }}; color:{{ '#ffa726' if c.platform == 'leetcode' else ('#e0505a' if c.platform == 'codeforces' else ('#c9820f' if c.platform == 'codechef' else ('#00ea64' if c.platform == 'hackerrank' else '#2ec866'))) }};">{{ c.plat_label }}</span>
                 <span style="font-size:11px; font-weight:700; color:#39d353; font-family:monospace;" class="contest-timer">{{ c.countdown }}</span>
               </div>
               <div style="font-size:12.5px; font-weight:600; color:var(--ink); margin-bottom:4px;">{{ c.name }}</div>
