@@ -497,6 +497,13 @@ def init_db_tables():
         # Ensure schema updates are committed
         conn.commit()
 
+        # Purge legacy fake badges awarded by bugged thresholds
+        try:
+            cursor.execute("DELETE FROM badges WHERE badge_name IN ('50 Days Badge 2024 🏆', 'Open Source Builder 🐙')")
+            conn.commit()
+        except Exception:
+            pass
+
     except Exception as e:
         print(f"Notice: DB initialization step: {e}")
 
@@ -897,48 +904,209 @@ def delete_user_project(user_id, project_id):
     return bool(res)
 
 
-DEFAULT_BADGES = [
-    {"name": "Knight 🛡️", "desc": "LeetCode Contest Rating 1900+", "earned": True},
-    {"name": "5★ Coder ⭐", "desc": "CodeChef Division 1 Master", "earned": True},
-    {"name": "50 Days Badge 2024 🏆", "desc": "Maintained 50 consecutive daily streak", "earned": True},
-    {"name": "Open Source Builder 🐙", "desc": "Contributed 1,000+ GitHub commits", "earned": True},
-    {"name": "Top 1% Leaderboard 🥇", "desc": "Ranked top 10 on global SkillStack leaderboard", "earned": True},
-    {"name": "Master Problem Solver ⚡", "desc": "Solved 1,000+ total problems across platforms", "earned": True}
-]
+BADGE_REGISTRY = {
+    "Century Club (100+ Solved) 💯": {
+        "desc": "Solved 100+ problems across verified coding platforms",
+        "icon": "💯"
+    },
+    "First Step 🎯": {
+        "desc": "Solved your first competitive programming problem",
+        "icon": "🎯"
+    },
+    "Polyglot Coder 🌐": {
+        "desc": "Connected 3+ coding platforms to SkillStack",
+        "icon": "🌐"
+    },
+    "GFG Specialist 🟢": {
+        "desc": "Solved 50+ problems on GeeksforGeeks",
+        "icon": "🟢"
+    },
+    "CodeChef Active Solver 👨‍🍳": {
+        "desc": "Solved 25+ problems on CodeChef",
+        "icon": "👨‍🍳"
+    },
+    "Master Problem Solver ⚡": {
+        "desc": "Solved 500+ problems across platforms",
+        "icon": "⚡"
+    },
+    "50-Day Streak 🏆": {
+        "desc": "Maintained 50 consecutive daily streak",
+        "icon": "🏆"
+    },
+    "Open Source Builder 🐙": {
+        "desc": "Published 3+ public repositories/projects",
+        "icon": "🐙"
+    },
+    "Knight 🛡️": {
+        "desc": "LeetCode Contest Rating 1900+",
+        "icon": "🛡️"
+    },
+    "5★ Coder ⭐": {
+        "desc": "CodeChef Division 1 Master",
+        "icon": "⭐"
+    }
+}
+
+
+def fetch_hackerrank_badges(username):
+    """Fetch real official badges from HackerRank API."""
+    badges = []
+    try:
+        url = f"https://www.hackerrank.com/rest/hackers/{username}/badges"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            for b in data.get("models", []):
+                name = b.get("badge_name")
+                stars = b.get("stars", 1)
+                star_str = "★" * stars
+                b_name = f"HackerRank {name} ({star_str}) ⭐"
+                badges.append({
+                    "name": b_name,
+                    "desc": f"Earned {stars}-Star badge in {name} on HackerRank",
+                    "icon": "⭐"
+                })
+    except Exception as e:
+        print("Notice fetching HackerRank badges:", e)
+    return badges
+
+
+def fetch_leetcode_badges(username):
+    """Fetch real official badges from LeetCode GraphQL API."""
+    badges = []
+    try:
+        url = 'https://leetcode.com/graphql'
+        query = '''
+        query userBadges($username: String!) {
+            matchedUser(username: $username) {
+                badges {
+                    id
+                    displayName
+                    icon
+                }
+            }
+        }
+        '''
+        req = urllib.request.Request(
+            url,
+            data=json.dumps({'query': query, 'variables': {'username': username}}).encode('utf-8'),
+            headers={
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Referer': f'https://leetcode.com/{username}/'
+            }
+        )
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            lc_badges = data.get('data', {}).get('matchedUser', {}).get('badges', [])
+            for b in lc_badges:
+                b_name = f"LeetCode {b.get('displayName')} 🏆"
+                badges.append({
+                    "name": b_name,
+                    "desc": f"Official LeetCode achievement badge",
+                    "icon": "🏆"
+                })
+    except Exception as e:
+        print("Notice fetching LeetCode badges:", e)
+    return badges
 
 
 def get_user_badges(user_id):
-    """Retrieve user badges from DB, fallback to DEFAULT_BADGES only for demo user #1."""
-    rows = db_query("SELECT * FROM badges WHERE user_id = %s ORDER BY id DESC", (user_id,), fetchall=True)
+    """Retrieve user badges from DB with real verified descriptions and icons."""
+    rows = db_query("SELECT * FROM badges WHERE user_id = %s ORDER BY id DESC", (user_id,), fetchall=True) or []
     custom_awarded = get_user_awarded_custom_badges(user_id)
     
     combined = []
-    if rows:
-        combined.extend([{"name": r["badge_name"], "earned_at": r["earned_at"].strftime("%b %d, %Y") if isinstance(r.get("earned_at"), datetime) else "Recently"} for r in rows])
+    for r in rows:
+        b_name = r["badge_name"]
+        info = BADGE_REGISTRY.get(b_name, {})
+        desc = info.get("desc") or (r["earned_at"].strftime("%b %d, %Y") if isinstance(r.get("earned_at"), datetime) else "Verified Achievement")
+        icon = info.get("icon") or "🏆"
+        combined.append({
+            "name": b_name,
+            "desc": desc,
+            "icon": icon,
+            "earned_at": r["earned_at"].strftime("%b %d, %Y") if isinstance(r.get("earned_at"), datetime) else "Recently"
+        })
     if custom_awarded:
         combined.extend(custom_awarded)
         
-    if combined:
-        return combined
-
-    return []
-
+    return combined
 
 
 def check_and_award_badges(user_id):
-    """Auto-evaluate and insert badges into DB based on accomplishments."""
+    """Auto-evaluate and insert badges into DB strictly based on REAL verified accomplishments."""
     projects = get_user_projects(user_id)
     profiles = get_user_coding_profiles(user_id)
-    total_solved = sum([p.get("problems_solved", 0) for p in profiles if p.get("connected")])
+    connected = [p for p in profiles if p.get("connected")]
+    total_solved = sum([p.get("problems_solved", 0) for p in connected])
+    
+    # Real active streak
+    streak_days = 1 if (connected and total_solved > 0) else 0
+
+    # Purge any legacy fake/demo badges awarded by old buggy thresholds
+    db_query("DELETE FROM badges WHERE user_id = %s AND badge_name IN ('50 Days Badge 2024 🏆', 'Open Source Builder 🐙')", (user_id,), commit=True)
 
     badges_to_award = []
-    if len(projects) >= 3:
-        badges_to_award.append("Open Source Builder 🐙")
+
+    # 1. First Step: Solved at least 1 verified problem
+    if total_solved >= 1:
+        badges_to_award.append("First Step 🎯")
+
+    # 2. Century Club: Solved 100+ verified problems across platforms
+    if total_solved >= 100:
+        badges_to_award.append("Century Club (100+ Solved) 💯")
+
+    # 3. Polyglot Coder: Connected 3+ coding platforms
+    if len(connected) >= 3:
+        badges_to_award.append("Polyglot Coder 🌐")
+
+    # 4. Platform-specific verified milestones
+    gfg_profile = next((p for p in connected if p.get("key") in ["geeksforgeeks", "gfg"]), None)
+    if gfg_profile and gfg_profile.get("problems_solved", 0) >= 50:
+        badges_to_award.append("GFG Specialist 🟢")
+
+    codechef_profile = next((p for p in connected if p.get("key") == "codechef"), None)
+    if codechef_profile and codechef_profile.get("problems_solved", 0) >= 25:
+        badges_to_award.append("CodeChef Active Solver 👨‍🍳")
+
+    # 5. Master Problem Solver: ONLY when real total solved >= 500
     if total_solved >= 500:
         badges_to_award.append("Master Problem Solver ⚡")
-    if total_solved >= 100:
-        badges_to_award.append("50 Days Badge 2024 🏆")
 
+    # 6. Open Source Builder: ONLY when user genuinely has 3+ real projects
+    if len(projects) >= 3:
+        badges_to_award.append("Open Source Builder 🐙")
+
+    # 7. Real Streak Milestones: ONLY if actual streak reaches 50 days
+    if streak_days >= 50:
+        badges_to_award.append("50-Day Streak 🏆")
+
+    # 8. Live platform badges (e.g. HackerRank official badges)
+    hr_profile = next((p for p in connected if p.get("key") in ["hackerrank", "hr"]), None)
+    hr_handle = (hr_profile.get("raw_handle") or hr_profile.get("handle") or "").lstrip("@") if hr_profile else ""
+    if hr_handle and hr_handle not in ["Add handle", ""]:
+        hr_badges = fetch_hackerrank_badges(hr_handle)
+        for hb in hr_badges:
+            b_name = hb.get("name")
+            if b_name:
+                badges_to_award.append(b_name)
+                if b_name not in BADGE_REGISTRY:
+                    BADGE_REGISTRY[b_name] = {"desc": hb.get("desc", "Official HackerRank Badge"), "icon": hb.get("icon", "⭐")}
+
+    # 9. Live LeetCode official badges
+    lc_profile = next((p for p in connected if p.get("key") == "leetcode"), None)
+    lc_handle = (lc_profile.get("raw_handle") or lc_profile.get("handle") or "").lstrip("@") if lc_profile else ""
+    if lc_handle and lc_handle not in ["Add handle", ""]:
+        lc_badges = fetch_leetcode_badges(lc_handle)
+        for lb in lc_badges:
+            b_name = lb.get("name")
+            if b_name:
+                badges_to_award.append(b_name)
+                if b_name not in BADGE_REGISTRY:
+                    BADGE_REGISTRY[b_name] = {"desc": lb.get("desc", "Official LeetCode Badge"), "icon": lb.get("icon", "🏆")}
+
+    # Insert genuine badges into DB
     for badge_name in badges_to_award:
         existing = db_query("SELECT id FROM badges WHERE user_id = %s AND badge_name = %s", (user_id, badge_name), fetchone=True)
         if not existing:
@@ -1732,6 +1900,7 @@ def dashboard():
     hard_count = next((p.get("hard", 0) for p in connected_platforms if p["key"] == "leetcode"), 0)
 
     user_projects = get_user_projects(user_id)
+    check_and_award_badges(user_id)
     user_badges = get_user_badges(user_id)
     announcements = get_all_announcements()
     assignments = get_all_assignments()
