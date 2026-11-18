@@ -1894,6 +1894,33 @@ def dashboard():
         user_initials = "ST"
 
     platforms = get_user_coding_profiles(user_id)
+
+    # Auto-sync any connected platform that has placeholder 'Connected' stats so user never has to manual-sync
+    needs_refresh = False
+    for p in platforms:
+        if p.get("connected") and p.get("raw_handle"):
+            if p.get("problems_solved", 0) == 0 and (p.get("rating") == "Connected" or p.get("solved") in ["Connected", "0 Solved", "—"]):
+                plat_k = p["key"]
+                handle = p["raw_handle"]
+                res = None
+                if plat_k == "leetcode":
+                    res = fetch_leetcode_stats(handle)
+                elif plat_k == "github":
+                    res = fetch_github_stats(handle)
+
+                if res and (res.get("total_solved", 0) > 0 or (res.get("rating_label") and res.get("rating_label") != "Connected")):
+                    r_val = res.get("rating_label") or res.get("rating") or "Connected"
+                    s_val = res.get("solved_label") or res.get("solved") or "0 Solved"
+                    s_cnt = res.get("total_solved") or 0
+                    save_user_coding_profile(user_id, plat_k, handle, r_val, s_cnt, s_val)
+                    p["problems_solved"] = s_cnt
+                    p["rating"] = r_val
+                    p["solved"] = s_val
+                    needs_refresh = True
+
+    if needs_refresh:
+        dump_full_database_to_backup()
+
     connected_platforms = [p for p in platforms if p.get("connected")]
     total_solved = sum([p.get("problems_solved", 0) for p in connected_platforms])
     easy_count = next((p.get("easy", 0) for p in connected_platforms if p["key"] == "leetcode"), 0)
