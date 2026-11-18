@@ -997,8 +997,9 @@ def fetch_leetcode_badges(username):
             }
         )
         with urllib.request.urlopen(req, timeout=4) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
-            lc_badges = data.get('data', {}).get('matchedUser', {}).get('badges', [])
+            data = json.loads(resp.read().decode('utf-8')) or {}
+            user_data = (data.get('data') or {}).get('matchedUser') or {}
+            lc_badges = user_data.get('badges', []) if isinstance(user_data, dict) else []
             for b in lc_badges:
                 b_name = f"LeetCode {b.get('displayName')} 🏆"
                 badges.append({
