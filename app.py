@@ -1013,7 +1013,7 @@ def fetch_leetcode_badges(username):
 
 
 def get_user_badges(user_id):
-    """Retrieve user badges from DB with real verified descriptions and icons."""
+    """Retrieve user badges from DB with real verified descriptions, icons, and official vs milestone sources."""
     rows = db_query("SELECT * FROM badges WHERE user_id = %s ORDER BY id DESC", (user_id,), fetchall=True) or []
     custom_awarded = get_user_awarded_custom_badges(user_id)
     
@@ -1021,15 +1021,50 @@ def get_user_badges(user_id):
     for r in rows:
         b_name = r["badge_name"]
         info = BADGE_REGISTRY.get(b_name, {})
-        desc = info.get("desc") or (r["earned_at"].strftime("%b %d, %Y") if isinstance(r.get("earned_at"), datetime) else "Verified Achievement")
+        desc = info.get("desc")
         icon = info.get("icon") or "🏆"
+        
+        is_official = False
+        source = "SkillStack Milestone"
+        source_platform = "SkillStack"
+        
+        if b_name.startswith("HackerRank"):
+            is_official = True
+            source = "Official HackerRank"
+            source_platform = "HackerRank"
+            icon = "⭐"
+            if not desc or desc == "Verified Achievement":
+                m = re.search(r"HackerRank\s+(.*?)\s*\((★+)\)", b_name)
+                if m:
+                    skill, stars = m.group(1).strip(), len(m.group(2))
+                    desc = f"Earned {stars}-Star badge in {skill} on HackerRank"
+                else:
+                    desc = "Official HackerRank verified skill badge"
+        elif b_name.startswith("LeetCode"):
+            is_official = True
+            source = "Official LeetCode"
+            source_platform = "LeetCode"
+            icon = "🏆"
+            if not desc or desc == "Verified Achievement":
+                desc = "Official LeetCode achievement badge"
+        else:
+            if not desc:
+                desc = r["earned_at"].strftime("%b %d, %Y") if isinstance(r.get("earned_at"), datetime) else "Verified Achievement"
+
         combined.append({
             "name": b_name,
             "desc": desc,
             "icon": icon,
+            "is_official": is_official,
+            "source": source,
+            "source_platform": source_platform,
             "earned_at": r["earned_at"].strftime("%b %d, %Y") if isinstance(r.get("earned_at"), datetime) else "Recently"
         })
     if custom_awarded:
+        for cb in custom_awarded:
+            cb.setdefault("is_official", False)
+            cb.setdefault("source", "Campus Award")
+            cb.setdefault("source_platform", "Campus")
         combined.extend(custom_awarded)
         
     return combined
