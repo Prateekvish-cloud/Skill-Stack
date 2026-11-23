@@ -76,6 +76,10 @@ def get_db_connection():
 
 
 BACKUP_FILE = os.path.join(os.path.dirname(__file__), "user_credentials_backup.json")
+BOGUS_TEST_HASHES = {
+    "scrypt:32768:8:1$oGik4R9wTevg87D0$f4a43e991cebc2ae59578bb71f6a84198143b5eeabef799ea738194f7a52b245b8aa106ff694e50701f461a68ff15b95b0cbcc8e2c0fac5698a2d3b62e148fb6",
+    "scrypt:32768:8:1$aroEFkYXwPHe2J7g$de9598027924ac523ee00d97f9ef4587c3616175deefcf9f2cdd916e42532f60b8d6bcf7e1ddb833db5514a6ae3535c0a95ecd5418c55e2fbeaba4dc5901720a"
+}
 
 def load_persistent_backup():
     """Load JSON backup from disk or return default clean data structure."""
@@ -146,8 +150,8 @@ def dump_full_database_to_backup():
                 })
 
             existing_user_backup = users_dict.get(email_clean, {})
-            # Keep existing password hash if DB hash is temporarily blank
-            pw_to_save = u.get("password_hash") or existing_user_backup.get("password_hash") or ""
+            # Never write active or test password hashes to git backup JSON to prevent lockouts across restarts
+            pw_to_save = ""
 
             users_dict[email_clean] = {
                 "name": u.get("name") or "",
@@ -187,7 +191,7 @@ def backup_user_state(email, name=None, password_hash=None, college=None, locati
 
     u = users.setdefault(email_clean, {
         "name": name or email_clean.split("@")[0].capitalize(),
-        "password_hash": password_hash or generate_password_hash("password"),
+        "password_hash": "",
         "college": college or "IMS Engineering College",
         "location": location or "Delhi NCR, India",
         "bio": bio or "Passionate competitive programmer and developer.",
@@ -197,8 +201,7 @@ def backup_user_state(email, name=None, password_hash=None, college=None, locati
 
     if name:
         u["name"] = name
-    if password_hash:
-        u["password_hash"] = password_hash
+    u["password_hash"] = ""
     if college:
         u["college"] = college
     if location:
@@ -750,7 +753,12 @@ def restore_persistent_state_to_db():
                 # Only backfill empty fields, never overwrite user changes
                 updates = []
                 params = []
-                if pw_hash and not existing.get("password_hash"):
+                ex_hash = existing.get("password_hash") or ""
+                # Clear bogus test password hashes or adopt fresh authentication flow
+                if not pw_hash or ex_hash in BOGUS_TEST_HASHES:
+                    updates.append("password_hash = %s")
+                    params.append(pw_hash or "")
+                elif pw_hash and not ex_hash:
                     updates.append("password_hash = %s")
                     params.append(pw_hash)
                 if college and not existing.get("college"):
@@ -1309,16 +1317,16 @@ def signup():
 
 def find_user_by_identifier(identifier):
     """
-    Robust account lookup matching email, name, OR any connected platform handle.
+    Robust account lookup matching email, name, email prefix, OR any connected platform handle.
     """
     clean_id = (identifier or "").strip().lower()
     if not clean_id:
         return []
 
-    # 1. Exact match on email or name in users table
+    # 1. Exact match on email, name, or email prefix in users table
     users = db_query(
-        "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s)) OR LOWER(TRIM(name)) = LOWER(TRIM(%s))",
-        (clean_id, clean_id),
+        "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(%s)) OR LOWER(TRIM(name)) = LOWER(TRIM(%s)) OR LOWER(TRIM(SUBSTR(email, 1, INSTR(email || '@', '@') - 1))) = LOWER(TRIM(%s))",
+        (clean_id, clean_id, clean_id),
         fetchall=True
     ) or []
 
@@ -1340,7 +1348,18 @@ def find_user_by_identifier(identifier):
             if users:
                 return users
 
-    # Strict matching only: prevent false-positive startswith matches from grabbing wrong user accounts
+    # 3. Match handle or email in persistent backup JSON in case profiles aren't seeded yet
+    try:
+        backup = load_persistent_backup()
+        for b_email, b_data in (backup.get("users") or {}).items():
+            b_handles = [str(h).lower() for h in (b_data.get("handles") or {}).values()]
+            if clean_id in b_handles or clean_id == b_email.lower() or clean_id == b_email.split("@")[0].lower():
+                users = db_query("SELECT * FROM users WHERE LOWER(TRIM(email)) = %s", (b_email.lower(),), fetchall=True) or []
+                if users:
+                    return users
+    except Exception:
+        pass
+
     return []
 
 
@@ -1399,11 +1418,10 @@ def login():
             matched_user = None
             for u in users:
                 pw_hash = u.get("password_hash") or ""
-                # If account was restored without a pre-set password, adopt the password entered
-                if not pw_hash:
+                # If account was restored without a pre-set password (or has stale test hash), adopt the password entered
+                if not pw_hash or pw_hash in BOGUS_TEST_HASHES:
                     new_hash = generate_password_hash(password)
                     db_query("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, u["id"]), commit=True)
-                    backup_user_state(u["email"], password_hash=new_hash)
                     u["password_hash"] = new_hash
                     matched_user = u
                     break
@@ -1425,7 +1443,7 @@ def login():
                 flash(f"Welcome back, {matched_user['name']}!", "success")
                 return redirect(url_for("dashboard"))
             else:
-                flash("Incorrect password. Please check your password or click 'Forgot Password?' below to reset it.", "error")
+                flash("Incorrect password. Please check your password or click <a href='/forgot-password' style='color:#ffa726; text-decoration:underline; font-weight:700;'>Forgot Password?</a> below to reset it.", "error")
                 return render_template("login.html")
 
         flash("No account found with this email or username. Please sign up first.", "error")
