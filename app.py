@@ -4,15 +4,12 @@ import json
 import time
 import hmac
 import hashlib
-import struct
-import base64
 import secrets
 import smtplib
 import sqlite3
 import threading
 import urllib.request
 from email.message import EmailMessage
-from urllib.parse import quote
 from datetime import datetime, timedelta
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response, make_response
@@ -247,11 +244,24 @@ def init_db_tables():
                     github_url TEXT,
                     linkedin_url TEXT,
                     role TEXT DEFAULT 'student',
-                    two_factor_enabled INTEGER DEFAULT 0,
-                    two_factor_method TEXT DEFAULT 'totp',
+                    two_factor_enabled INTEGER DEFAULT 1,
+                    two_factor_method TEXT DEFAULT 'email',
                     two_factor_secret TEXT,
                     backup_codes_hash TEXT,
                     created_at TIMESTAMP
+                );
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS email_login_verifications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    token_hash TEXT NOT NULL,
+                    otp_hash TEXT NOT NULL,
+                    approved INTEGER DEFAULT 0,
+                    used INTEGER DEFAULT 0,
+                    attempts INTEGER DEFAULT 0,
+                    expires_at INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL
                 );
             """)
             cursor.execute("""
@@ -374,11 +384,24 @@ def init_db_tables():
                     github_url VARCHAR(255),
                     linkedin_url VARCHAR(255),
                     role VARCHAR(50) DEFAULT 'student',
-                    two_factor_enabled INTEGER DEFAULT 0,
-                    two_factor_method VARCHAR(32) DEFAULT 'totp',
+                    two_factor_enabled INTEGER DEFAULT 1,
+                    two_factor_method VARCHAR(32) DEFAULT 'email',
                     two_factor_secret TEXT,
                     backup_codes_hash TEXT,
                     created_at TIMESTAMP
+                );
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS email_login_verifications (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    token_hash TEXT NOT NULL,
+                    otp_hash TEXT NOT NULL,
+                    approved INT DEFAULT 0,
+                    used INT DEFAULT 0,
+                    attempts INT DEFAULT 0,
+                    expires_at BIGINT NOT NULL,
+                    created_at BIGINT NOT NULL
                 );
                 """,
                 """
@@ -503,11 +526,24 @@ def init_db_tables():
                     github_url VARCHAR(255),
                     linkedin_url VARCHAR(255),
                     role VARCHAR(50) DEFAULT 'student',
-                    two_factor_enabled TINYINT(1) DEFAULT 0,
-                    two_factor_method VARCHAR(32) DEFAULT 'totp',
+                    two_factor_enabled TINYINT(1) DEFAULT 1,
+                    two_factor_method VARCHAR(32) DEFAULT 'email',
                     two_factor_secret TEXT,
                     backup_codes_hash TEXT,
                     created_at DATETIME
+                );
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS email_login_verifications (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    token_hash VARCHAR(255) NOT NULL,
+                    otp_hash VARCHAR(255) NOT NULL,
+                    approved TINYINT(1) DEFAULT 0,
+                    used TINYINT(1) DEFAULT 0,
+                    attempts INT DEFAULT 0,
+                    expires_at BIGINT NOT NULL,
+                    created_at BIGINT NOT NULL
                 );
             """)
             cursor.execute("""
@@ -629,8 +665,8 @@ def init_db_tables():
             ("github_url", "TEXT"),
             ("linkedin_url", "TEXT"),
             ("role", "TEXT"),
-            ("two_factor_enabled", "INTEGER DEFAULT 0"),
-            ("two_factor_method", "VARCHAR(32) DEFAULT 'totp'"),
+            ("two_factor_enabled", "INTEGER DEFAULT 1"),
+            ("two_factor_method", "VARCHAR(32) DEFAULT 'email'"),
             ("two_factor_secret", "TEXT"),
             ("backup_codes_hash", "TEXT")
         ]
@@ -664,6 +700,16 @@ def init_db_tables():
 
         # Ensure schema updates are committed
         conn.commit()
+
+        # Migrate legacy TOTP default accounts cleanly to 2-Step Email Verification
+        try:
+            cursor.execute("UPDATE users SET two_factor_method = 'email', two_factor_enabled = 1 WHERE two_factor_method = 'totp' OR two_factor_method IS NULL OR two_factor_method = ''")
+            conn.commit()
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
 
         # Purge legacy fake badges awarded by bugged thresholds
         try:
@@ -907,7 +953,7 @@ def restore_persistent_state_to_db():
             existing = db_query("SELECT id, name, password_hash, college, location, bio, headline, github_url, linkedin_url FROM users WHERE LOWER(email) = %s", (email.lower(),), fetchone=True)
             if not existing:
                 db_query(
-                    "INSERT INTO users (name, email, password_hash, headline, college, location, bio, github_url, linkedin_url, role, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    "INSERT INTO users (name, email, password_hash, headline, college, location, bio, github_url, linkedin_url, role, two_factor_enabled, two_factor_method, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1, 'email', %s)",
                     (name, email.lower(), pw_hash, headline, college, location, bio, github_url, linkedin_url, role, datetime.utcnow()),
                     commit=True
                 )
@@ -1465,7 +1511,7 @@ def signup():
 
         password_hash = generate_password_hash(password.strip())
         db_query(
-            "INSERT INTO users (name, email, password_hash, college, location, created_at) VALUES (%s, %s, %s, %s, %s, %s)",
+            "INSERT INTO users (name, email, password_hash, college, location, two_factor_enabled, two_factor_method, created_at) VALUES (%s, %s, %s, %s, %s, 1, 'email', %s)",
             (name, email, password_hash, college, location, datetime.utcnow()),
             commit=True
         )
@@ -1574,85 +1620,6 @@ def verify_user_password(stored_hash, input_password):
     return False
 
 
-def generate_totp_secret():
-    """Generate a 160-bit Base32 secret compatible with Google Authenticator / Authy."""
-    return base64.b32encode(secrets.token_bytes(20)).decode("ascii").rstrip("=")
-
-
-def compute_totp(secret, for_time=None, step=30, digits=6):
-    """Compute a 6-digit RFC 6238 SHA1 TOTP code."""
-    clean = (secret or "").strip().replace(" ", "").upper()
-    if not clean:
-        return ""
-    clean += "=" * ((8 - len(clean) % 8) % 8)
-    key = base64.b32decode(clean)
-    ts = int(time.time() if for_time is None else for_time)
-    counter = ts // step
-    msg = struct.pack(">Q", counter)
-    digest = hmac.new(key, msg, hashlib.sha1).digest()
-    offset = digest[-1] & 0x0F
-    code_int = struct.unpack(">I", digest[offset:offset + 4])[0] & 0x7FFFFFFF
-    return str(code_int % (10 ** digits)).zfill(digits)
-
-
-def verify_totp_code(secret, code, window=1):
-    """Verify a 6-digit TOTP code with +/- window step drift tolerance."""
-    cleaned = re.sub(r"[^0-9]", "", (code or ""))
-    if len(cleaned) != 6 or not secret:
-        return False
-    now = int(time.time())
-    try:
-        for delta in range(-window, window + 1):
-            expected = compute_totp(secret, for_time=now + (delta * 30))
-            if expected and hmac.compare_digest(expected, cleaned):
-                return True
-    except Exception as e:
-        print("Notice verifying TOTP code:", e)
-    return False
-
-
-def build_otpauth_uri(email, secret, issuer="SkillStack"):
-    """Build standard otpauth:// URI for Authenticator apps."""
-    label = quote(f"{issuer}:{email}")
-    return f"otpauth://totp/{label}?secret={secret}&issuer={quote(issuer)}&algorithm=SHA1&digits=6&period=30"
-
-
-def generate_backup_codes(count=6):
-    """Generate human-readable one-time recovery codes and their secure hashes."""
-    plain_codes = []
-    hashed_codes = []
-    for _ in range(count):
-        raw = secrets.token_hex(4).upper()
-        formatted = f"{raw[:4]}-{raw[4:]}"
-        plain_codes.append(formatted)
-        hashed_codes.append(generate_password_hash(raw))
-    return plain_codes, json.dumps(hashed_codes)
-
-
-def verify_and_consume_backup_code(user, entered_code):
-    """Check recovery code against stored hashes and consume on single use."""
-    norm = re.sub(r"[^A-Z0-9]", "", (entered_code or "").upper())
-    if len(norm) < 6:
-        return False, 0
-    try:
-        stored_hashes = json.loads(user.get("backup_codes_hash") or "[]")
-    except Exception:
-        stored_hashes = []
-    if not isinstance(stored_hashes, list) or not stored_hashes:
-        return False, 0
-
-    for idx, h in enumerate(stored_hashes):
-        if h and check_password_hash(h, norm):
-            remaining = stored_hashes[:idx] + stored_hashes[idx + 1:]
-            db_query(
-                "UPDATE users SET backup_codes_hash = %s WHERE id = %s",
-                (json.dumps(remaining), user["id"]),
-                commit=True
-            )
-            return True, len(remaining)
-    return False, len(stored_hashes)
-
-
 def mask_email(email):
     """Mask email address cleanly for display during Step 2 verification."""
     e = (email or "").strip()
@@ -1666,48 +1633,98 @@ def mask_email(email):
     return f"{masked_local}@{domain}"
 
 
-def is_smtp_configured():
-    """Return True if outbound SMTP environment variables are configured."""
-    return bool(
-        os.getenv("SMTP_HOST", "").strip()
-        and os.getenv("SMTP_USER", "").strip()
-        and os.getenv("SMTP_PASS", "").strip()
-    )
-
-
-def send_2fa_email_code(to_email, code, user_name="Developer"):
-    """Send 6-digit 2-Step Verification code via configured SMTP server."""
-    if not is_smtp_configured() or not to_email:
-        return False, "SMTP email delivery is not configured on this server."
-
-    host = os.getenv("SMTP_HOST", "").strip()
-    port = int(os.getenv("SMTP_PORT", "587") or 587)
+def is_email_service_configured():
+    """Return True if outbound email delivery (Resend API or SMTP) is configured."""
+    if os.getenv("RESEND_API_KEY", "").strip():
+        return True
     smtp_user = os.getenv("SMTP_USER", "").strip()
     smtp_pass = os.getenv("SMTP_PASS", "").strip()
+    return bool(smtp_user and smtp_pass)
+
+
+def send_2fa_verification_email(to_email, code, verify_url=None, user_name="Developer"):
+    """Send 2-Step Email Verification mail with a 1-click Verify link and 6-digit code."""
+    if not is_email_service_configured() or not to_email:
+        return False, "Email delivery (SMTP or Resend API) is not configured on this server."
+
+    subject = f"SkillStack Verification: Confirm sign-in ({code})"
+    link_text = f"\nClick here to verify it's you:\n{verify_url}\n" if verify_url else ""
+    plain_body = (
+        f"Hi {user_name},\n\n"
+        f"We received a login request for your SkillStack account ({to_email}).\n"
+        f"{link_text}\n"
+        f"Or enter this 6-digit verification code on the login page: {code}\n\n"
+        f"This request expires in 10 minutes. If this wasn't you, you can safely ignore this email."
+    )
+
+    button_html = (
+        f"""
+        <div style="margin:20px 0;text-align:center;">
+          <a href="{verify_url}" style="display:inline-block;background:#ffa726;color:#141511;text-decoration:none;font-weight:800;font-size:15px;padding:13px 24px;border-radius:10px;">
+            ✓ Yes, Verify It's Me &amp; Log In
+          </a>
+        </div>
+        """
+        if verify_url
+        else ""
+    )
+    html_body = f"""
+    <div style="font-family:Inter,Arial,sans-serif;background:#141511;color:#F2EFE9;padding:28px;border-radius:14px;max-width:480px;border:1px solid #35342b;">
+      <h2 style="margin:0 0 8px 0;color:#D8CFBC;">SkillStack 2-Step Email Verification</h2>
+      <p style="margin:0 0 14px 0;color:#A8A295;font-size:14px;line-height:1.5;">
+        Hi <strong style="color:#F2EFE9;">{user_name}</strong>, someone just signed in to SkillStack using your email (<strong style="color:#F2EFE9;">{to_email}</strong>).
+      </p>
+      {button_html}
+      <p style="margin:14px 0 8px 0;color:#A8A295;font-size:13px;text-align:center;">Or enter this 6-digit verification code:</p>
+      <div style="background:#1E1F19;border:1px solid #ffa726;border-radius:10px;padding:14px;text-align:center;font-size:28px;font-weight:800;letter-spacing:8px;color:#ffa726;font-family:monospace;">
+        {code}
+      </div>
+      <p style="margin:18px 0 0 0;color:#7A7668;font-size:12px;">
+        Expires in 10 minutes. If you did not try to log in, we recommend changing your SkillStack password immediately.
+      </p>
+    </div>
+    """
+
+    resend_key = os.getenv("RESEND_API_KEY", "").strip()
+    if resend_key:
+        from_addr = os.getenv("SMTP_FROM", "SkillStack Security <onboarding@resend.dev>").strip()
+        payload = json.dumps({
+            "from": from_addr,
+            "to": [to_email],
+            "subject": subject,
+            "html": html_body,
+            "text": plain_body
+        }).encode("utf-8")
+        try:
+            req = urllib.request.Request(
+                "https://api.resend.com/emails",
+                data=payload,
+                headers={
+                    "Authorization": f"Bearer {resend_key}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "SkillStack/1.0"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if 200 <= resp.status < 300:
+                    return True, "Verification mail sent."
+        except Exception as re_err:
+            print("Notice sending 2FA email via Resend:", re_err)
+            if not (os.getenv("SMTP_USER", "").strip() and os.getenv("SMTP_PASS", "").strip()):
+                return False, str(re_err)
+
+    smtp_user = os.getenv("SMTP_USER", "").strip()
+    smtp_pass = os.getenv("SMTP_PASS", "").strip()
+    host = os.getenv("SMTP_HOST", "smtp.gmail.com" if smtp_user else "").strip()
+    port = int(os.getenv("SMTP_PORT", "587") or 587)
     from_addr = os.getenv("SMTP_FROM", smtp_user).strip()
 
     msg = EmailMessage()
-    msg["Subject"] = f"SkillStack Verification Code: {code}"
+    msg["Subject"] = subject
     msg["From"] = f"SkillStack Security <{from_addr}>"
     msg["To"] = to_email
-    msg.set_content(
-        f"Hi {user_name},\n\n"
-        f"Your SkillStack 2-Step Verification code is: {code}\n\n"
-        f"This code expires in 10 minutes. If you did not try to sign in, you can safely ignore this email."
-    )
-    msg.add_alternative(
-        f"""
-        <div style="font-family:Inter,Arial,sans-serif;background:#141511;color:#F2EFE9;padding:28px;border-radius:12px;max-width:460px;">
-          <h2 style="margin:0 0 8px 0;color:#D8CFBC;">SkillStack 2-Step Verification</h2>
-          <p style="margin:0 0 18px 0;color:#A8A295;font-size:14px;">Hi {user_name}, enter the code below to complete your sign-in:</p>
-          <div style="background:#1E1F19;border:1px solid #ffa726;border-radius:10px;padding:16px;text-align:center;font-size:28px;font-weight:800;letter-spacing:8px;color:#ffa726;">
-            {code}
-          </div>
-          <p style="margin:18px 0 0 0;color:#7A7668;font-size:12px;">Expires in 10 minutes. Never share this code with anyone.</p>
-        </div>
-        """,
-        subtype="html"
-    )
+    msg.set_content(plain_body)
+    msg.add_alternative(html_body, subtype="html")
 
     try:
         if port == 465:
@@ -1719,15 +1736,15 @@ def send_2fa_email_code(to_email, code, user_name="Developer"):
                 server.starttls()
                 server.login(smtp_user, smtp_pass)
                 server.send_message(msg)
-        return True, "Verification code sent."
+        return True, "Verification mail sent."
     except Exception as e:
-        print("Notice sending 2FA email:", e)
+        print("Notice sending 2FA email via SMTP:", e)
         return False, str(e)
 
 
 def _trusted_device_fingerprint(user):
-    """Fingerprint bound to password and 2FA secret so secret resets revoke trusted devices."""
-    raw = f"{user.get('password_hash', '')}:{user.get('two_factor_secret', '')}"
+    """Fingerprint bound to password and 2FA toggle so password resets revoke trusted devices."""
+    raw = f"{user.get('password_hash', '')}:{user.get('two_factor_enabled', 1)}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
 
 
@@ -1764,18 +1781,11 @@ def is_trusted_device(user, token):
 
 
 def clear_pending_2fa():
-    """Clear all temporary Step-2 verification session state."""
+    """Clear all temporary Step-2 email verification session state."""
     for key in [
-        "pending_2fa_user_id",
-        "pending_2fa_email",
-        "pending_2fa_name",
-        "pending_2fa_role",
-        "pending_2fa_method",
-        "pending_2fa_expires",
-        "pending_2fa_attempts",
-        "pending_email_otp_hash",
-        "pending_email_otp_expires",
-        "pending_email_otp_sent_at",
+        "pending_email_2fa_id",
+        "pending_email_2fa_uid",
+        "pending_email_2fa_sent_at",
         "pending_reset_password_hash",
     ]:
         session.pop(key, None)
@@ -1789,34 +1799,51 @@ def complete_student_login(user):
     session["is_admin"] = user.get("role") == "admin"
 
 
-def start_2fa_challenge(user, pending_reset_hash=None):
-    """Initiate Step 2 verification session without logging the user in yet."""
-    clear_pending_2fa()
-    method = (user.get("two_factor_method") or "totp").lower()
-    if method not in ("totp", "email"):
-        method = "totp"
+def create_email_verification_record(user):
+    """Create hashed link token and 6-digit OTP row in email_login_verifications."""
+    now_ts = int(time.time())
+    exp_ts = now_ts + 600
+    raw_token = secrets.token_urlsafe(32)
+    otp_code = str(secrets.randbelow(900000) + 100000)
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    otp_hash = generate_password_hash(otp_code)
 
-    session["pending_2fa_user_id"] = user["id"]
-    session["pending_2fa_email"] = user["email"]
-    session["pending_2fa_name"] = user["name"]
-    session["pending_2fa_role"] = user.get("role") or "student"
-    session["pending_2fa_method"] = method
-    session["pending_2fa_expires"] = int(time.time()) + 600
-    session["pending_2fa_attempts"] = 0
+    db_query(
+        "DELETE FROM email_login_verifications WHERE user_id = %s AND (used = 1 OR expires_at < %s)",
+        (user["id"], now_ts),
+        commit=True
+    )
+    db_query(
+        "INSERT INTO email_login_verifications (user_id, token_hash, otp_hash, approved, used, attempts, expires_at, created_at) VALUES (%s, %s, %s, 0, 0, 0, %s, %s)",
+        (user["id"], token_hash, otp_hash, exp_ts, now_ts),
+        commit=True
+    )
+    row = db_query("SELECT * FROM email_login_verifications WHERE token_hash = %s", (token_hash,), fetchone=True)
+    return row, raw_token, otp_code
+
+
+def start_2fa_challenge(user, pending_reset_hash=None):
+    """Create email login challenge, send verification email, and redirect to Step 2."""
+    clear_pending_2fa()
+    row, raw_token, otp_code = create_email_verification_record(user)
+    if not row:
+        flash("Could not start email verification. Please try again.", "error")
+        return redirect(url_for("login"))
+
+    verify_url = url_for("verify_email_link", token=raw_token, _external=True)
+    ok, err_msg = send_2fa_verification_email(user["email"], otp_code, verify_url=verify_url, user_name=user.get("name", "Developer"))
+    if not ok:
+        db_query("DELETE FROM email_login_verifications WHERE id = %s", (row["id"],), commit=True)
+        flash(f"Could not send verification email to {mask_email(user['email'])}: {err_msg}", "error")
+        return redirect(url_for("login"))
+
+    session["pending_email_2fa_id"] = row["id"]
+    session["pending_email_2fa_uid"] = user["id"]
+    session["pending_email_2fa_sent_at"] = int(time.time())
     if pending_reset_hash:
         session["pending_reset_password_hash"] = pending_reset_hash
 
-    if method == "email":
-        code = str(secrets.randbelow(900000) + 100000)
-        session["pending_email_otp_hash"] = generate_password_hash(code)
-        session["pending_email_otp_expires"] = int(time.time()) + 600
-        session["pending_email_otp_sent_at"] = int(time.time())
-        ok, _ = send_2fa_email_code(user["email"], code, user["name"])
-        if ok:
-            flash(f"A 6-digit verification code was sent to {mask_email(user['email'])}.", "success")
-        else:
-            flash("Email delivery could not be reached. Please enter a Backup Recovery Code or check SMTP settings.", "error")
-
+    flash(f"Verification mail sent to {mask_email(user['email'])}. Check your inbox to verify it's you!", "success")
     return redirect(url_for("verify_2fa"))
 
 
@@ -1880,9 +1907,17 @@ def login():
             except Exception:
                 pass
 
-        # Step 2: Enforce 2-Step Verification if enabled and browser is not trusted
+        # Step 2: 2-Step Email Verification while logging in
         if matched_user.get("two_factor_enabled") and not is_trusted_device(matched_user, request.cookies.get("skillstack_2fa_trust")):
-            return start_2fa_challenge(matched_user)
+            if is_email_service_configured():
+                return start_2fa_challenge(matched_user)
+            else:
+                complete_student_login(matched_user)
+                flash(
+                    f"Welcome back, {matched_user['name']}! Configure SMTP or Resend keys in Environment Settings to enable live Email 2-Step Verification.",
+                    "success"
+                )
+                return redirect(url_for("dashboard"))
 
         complete_student_login(matched_user)
         flash(f"Welcome back, {matched_user['name']}!", "success")
@@ -1893,48 +1928,66 @@ def login():
 
 @app.route("/verify-2fa", methods=["GET", "POST"])
 def verify_2fa():
-    uid = session.get("pending_2fa_user_id")
-    expires = session.get("pending_2fa_expires", 0)
-    if not uid or int(time.time()) > int(expires):
+    verif_id = session.get("pending_email_2fa_id")
+    uid = session.get("pending_email_2fa_uid")
+    if not verif_id or not uid:
         clear_pending_2fa()
         flash("Your verification session expired. Please log in again.", "error")
         return redirect(url_for("login"))
 
+    row = db_query("SELECT * FROM email_login_verifications WHERE id = %s AND user_id = %s", (verif_id, uid), fetchone=True)
     user = db_query("SELECT * FROM users WHERE id = %s", (uid,), fetchone=True)
-    if not user:
+    if not row or not user or row.get("used") or int(time.time()) > int(row.get("expires_at", 0)):
         clear_pending_2fa()
-        flash("Account not found. Please log in again.", "error")
+        flash("Your verification code expired. Please log in again.", "error")
         return redirect(url_for("login"))
 
-    method = session.get("pending_2fa_method") or user.get("two_factor_method") or "totp"
-    attempts = int(session.get("pending_2fa_attempts", 0))
     pending_reset = bool(session.get("pending_reset_password_hash"))
+    attempts = int(row.get("attempts", 0))
+
+    # If approved via email button in another tab/device, finish sign-in immediately
+    if row.get("approved"):
+        db_query("UPDATE email_login_verifications SET used = 1 WHERE id = %s", (row["id"],), commit=True)
+        reset_hash = session.get("pending_reset_password_hash")
+        if reset_hash:
+            db_query("UPDATE users SET password_hash = %s WHERE id = %s", (reset_hash, user["id"]), commit=True)
+        clear_pending_2fa()
+        complete_student_login(user)
+        flash(f"Email verified! Welcome back, {user['name']}.", "success")
+        return redirect(url_for("dashboard"))
 
     if request.method == "POST":
         action = request.form.get("action", "verify")
-        if action == "resend" and method == "email":
-            last_sent = int(session.get("pending_email_otp_sent_at", 0))
+        if action == "resend":
+            last_sent = int(session.get("pending_email_2fa_sent_at", 0))
             now_ts = int(time.time())
             if now_ts - last_sent < 30:
                 wait_sec = 30 - (now_ts - last_sent)
-                flash(f"Please wait {wait_sec}s before requesting another code.", "error")
+                flash(f"Please wait {wait_sec}s before requesting another verification mail.", "error")
             else:
-                code = str(secrets.randbelow(900000) + 100000)
-                session["pending_email_otp_hash"] = generate_password_hash(code)
-                session["pending_email_otp_expires"] = now_ts + 600
-                session["pending_email_otp_sent_at"] = now_ts
-                ok, _ = send_2fa_email_code(user["email"], code, user["name"])
+                new_token = secrets.token_urlsafe(32)
+                new_code = str(secrets.randbelow(900000) + 100000)
+                new_token_hash = hashlib.sha256(new_token.encode("utf-8")).hexdigest()
+                new_otp_hash = generate_password_hash(new_code)
+                db_query(
+                    "UPDATE email_login_verifications SET token_hash = %s, otp_hash = %s, approved = 0, attempts = 0, expires_at = %s WHERE id = %s",
+                    (new_token_hash, new_otp_hash, now_ts + 600, row["id"]),
+                    commit=True
+                )
+                session["pending_email_2fa_sent_at"] = now_ts
+                verify_url = url_for("verify_email_link", token=new_token, _external=True)
+                ok, err_msg = send_2fa_verification_email(user["email"], new_code, verify_url=verify_url, user_name=user.get("name", "Developer"))
                 flash(
-                    f"New verification code sent to {mask_email(user['email'])}." if ok else "Could not send email code. Try a Backup Recovery Code.",
+                    f"New verification mail sent to {mask_email(user['email'])}." if ok else f"Could not send email: {err_msg}",
                     "success" if ok else "error"
                 )
+                attempts = 0
             return render_template(
                 "verify_2fa.html",
                 masked_email=mask_email(user["email"]),
-                method=method,
                 attempts_left=max(0, 5 - attempts),
                 pending_reset=pending_reset,
-                smtp_configured=is_smtp_configured(),
+                verified_tab_only=False,
             )
 
         if attempts >= 5:
@@ -1942,36 +1995,19 @@ def verify_2fa():
             flash("Too many failed verification attempts. Please log in again.", "error")
             return redirect(url_for("login"))
 
-        raw_code = request.form.get("code", "").strip()
-        use_backup = request.form.get("use_backup") == "1"
-        verified = False
-        used_backup = False
-        remaining_backups = None
-
-        if not raw_code:
-            flash("Please enter your 6-digit verification code or backup code.", "error")
+        raw_code = re.sub(r"[^0-9]", "", request.form.get("code", ""))
+        if len(raw_code) != 6:
+            flash("Please enter the 6-digit verification code sent to your email.", "error")
             return render_template(
                 "verify_2fa.html",
                 masked_email=mask_email(user["email"]),
-                method=method,
                 attempts_left=max(0, 5 - attempts),
                 pending_reset=pending_reset,
-                smtp_configured=is_smtp_configured(),
+                verified_tab_only=False,
             )
 
-        if use_backup or (len(re.sub(r"[^A-Za-z0-9]", "", raw_code)) > 6):
-            verified, remaining_backups = verify_and_consume_backup_code(user, raw_code)
-            used_backup = verified
-        elif method == "email":
-            otp_hash = session.get("pending_email_otp_hash") or ""
-            otp_exp = int(session.get("pending_email_otp_expires", 0))
-            clean_digits = re.sub(r"[^0-9]", "", raw_code)
-            if otp_hash and int(time.time()) <= otp_exp and len(clean_digits) == 6:
-                verified = check_password_hash(otp_hash, clean_digits)
-        else:
-            verified = verify_totp_code(user.get("two_factor_secret") or "", raw_code)
-
-        if verified:
+        if check_password_hash(row["otp_hash"], raw_code):
+            db_query("UPDATE email_login_verifications SET approved = 1, used = 1 WHERE id = %s", (row["id"],), commit=True)
             reset_hash = session.get("pending_reset_password_hash")
             if reset_hash:
                 db_query("UPDATE users SET password_hash = %s WHERE id = %s", (reset_hash, user["id"]), commit=True)
@@ -1980,13 +2016,12 @@ def verify_2fa():
             clear_pending_2fa()
             complete_student_login(user)
 
-            if reset_hash:
-                flash(f"Password updated and 2-Step Verification passed! Welcome back, {user['name']}.", "success")
-            elif used_backup:
-                flash(f"Signed in with Backup Recovery Code ({remaining_backups} codes remaining). Consider regenerating codes in Profile.", "success")
-            else:
-                flash(f"Welcome back, {user['name']}! Verified via 2-Step Verification.", "success")
-
+            flash(
+                f"Password updated and email verified! Welcome back, {user['name']}."
+                if reset_hash
+                else f"Email verified! Welcome back, {user['name']}.",
+                "success"
+            )
             resp = make_response(redirect(url_for("dashboard")))
             if request.form.get("trust_device"):
                 resp.set_cookie(
@@ -1999,8 +2034,9 @@ def verify_2fa():
             return resp
         else:
             attempts += 1
-            session["pending_2fa_attempts"] = attempts
+            db_query("UPDATE email_login_verifications SET attempts = %s WHERE id = %s", (attempts, row["id"]), commit=True)
             if attempts >= 5:
+                db_query("UPDATE email_login_verifications SET used = 1 WHERE id = %s", (row["id"],), commit=True)
                 clear_pending_2fa()
                 flash("Too many incorrect verification codes. Please log in again.", "error")
                 return redirect(url_for("login"))
@@ -2009,15 +2045,80 @@ def verify_2fa():
     return render_template(
         "verify_2fa.html",
         masked_email=mask_email(user["email"]),
-        method=method,
         attempts_left=max(0, 5 - attempts),
         pending_reset=pending_reset,
-        smtp_configured=is_smtp_configured(),
+        verified_tab_only=False,
     )
+
+
+@app.route("/verify-email-link/<token>")
+def verify_email_link(token):
+    """Handle clicking the 'Yes, Verify It's Me' link from the user's inbox."""
+    token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+    row = db_query("SELECT * FROM email_login_verifications WHERE token_hash = %s", (token_hash,), fetchone=True)
+    if not row or row.get("used") or int(time.time()) > int(row.get("expires_at", 0)):
+        flash("That verification link is invalid or has expired. Please log in again.", "error")
+        return redirect(url_for("login"))
+
+    user = db_query("SELECT * FROM users WHERE id = %s", (row["user_id"],), fetchone=True)
+    if not user:
+        flash("Account not found.", "error")
+        return redirect(url_for("login"))
+
+    db_query("UPDATE email_login_verifications SET approved = 1 WHERE id = %s", (row["id"],), commit=True)
+
+    # Same browser that initiated Step 1 -> log straight in
+    if session.get("pending_email_2fa_id") == row["id"]:
+        db_query("UPDATE email_login_verifications SET used = 1 WHERE id = %s", (row["id"],), commit=True)
+        reset_hash = session.get("pending_reset_password_hash")
+        if reset_hash:
+            db_query("UPDATE users SET password_hash = %s WHERE id = %s", (reset_hash, user["id"]), commit=True)
+        clear_pending_2fa()
+        complete_student_login(user)
+        flash(f"Email verified! Welcome back, {user['name']}.", "success")
+        return redirect(url_for("dashboard"))
+
+    # Clicked from phone / different browser: notify original tab via polling
+    return render_template(
+        "verify_2fa.html",
+        masked_email=mask_email(user["email"]),
+        verified_tab_only=True,
+    )
+
+
+@app.route("/api/2fa/status")
+def api_2fa_status():
+    """Poll endpoint allowing the login browser tab to sign in right after clicking email link."""
+    verif_id = session.get("pending_email_2fa_id")
+    uid = session.get("pending_email_2fa_uid")
+    if not verif_id or not uid:
+        return jsonify({"approved": False, "expired": True})
+
+    row = db_query("SELECT * FROM email_login_verifications WHERE id = %s AND user_id = %s", (verif_id, uid), fetchone=True)
+    if not row or row.get("used") or int(time.time()) > int(row.get("expires_at", 0)):
+        clear_pending_2fa()
+        return jsonify({"approved": False, "expired": True})
+
+    if row.get("approved"):
+        user = db_query("SELECT * FROM users WHERE id = %s", (uid,), fetchone=True)
+        if user:
+            db_query("UPDATE email_login_verifications SET used = 1 WHERE id = %s", (row["id"],), commit=True)
+            reset_hash = session.get("pending_reset_password_hash")
+            if reset_hash:
+                db_query("UPDATE users SET password_hash = %s WHERE id = %s", (reset_hash, user["id"]), commit=True)
+            clear_pending_2fa()
+            complete_student_login(user)
+            flash(f"Email verified! Welcome back, {user['name']}.", "success")
+            return jsonify({"approved": True, "redirect": url_for("dashboard")})
+
+    return jsonify({"approved": False, "expired": False})
 
 
 @app.route("/verify-2fa/cancel")
 def cancel_2fa():
+    verif_id = session.get("pending_email_2fa_id")
+    if verif_id:
+        db_query("UPDATE email_login_verifications SET used = 1 WHERE id = %s", (verif_id,), commit=True)
     clear_pending_2fa()
     flash("Verification cancelled.", "success")
     return redirect(url_for("login"))
@@ -2055,9 +2156,8 @@ def forgot_password():
         new_hash = generate_password_hash(new_password)
         primary_user = users[0]
 
-        # Enforce 2-Step Verification before resetting password if 2SV is active
-        if primary_user.get("two_factor_enabled"):
-            flash("Complete 2-Step Verification to finish resetting your password.", "success")
+        # Require Email 2-Step Verification before resetting password when Email 2SV is active & configured
+        if primary_user.get("two_factor_enabled") and is_email_service_configured():
             return start_2fa_challenge(primary_user, pending_reset_hash=new_hash)
 
         for u in users:
@@ -2680,6 +2780,7 @@ def dashboard():
         upcoming_contests=upcoming_contests,
         active_page="dashboard",
         two_factor_enabled=bool(db_user.get("two_factor_enabled")),
+        email_service_configured=is_email_service_configured(),
         is_admin=session.get("is_admin", True)
     )
 
@@ -3742,25 +3843,7 @@ def user_profile():
     }
 
     two_factor_enabled = bool(db_user.get("two_factor_enabled"))
-    two_factor_method = (db_user.get("two_factor_method") or "totp").lower()
     user_email = db_user.get("email") or ""
-
-    setup_secret = session.get("setup_totp_secret")
-    if not two_factor_enabled and not setup_secret:
-        setup_secret = generate_totp_secret()
-        session["setup_totp_secret"] = setup_secret
-
-    setup_secret = setup_secret or ""
-    setup_secret_formatted = " ".join(setup_secret[i:i + 4] for i in range(0, len(setup_secret), 4))
-    otpauth_uri = build_otpauth_uri(user_email or profile_data["username"], setup_secret) if setup_secret else ""
-
-    try:
-        backup_hashes = json.loads(db_user.get("backup_codes_hash") or "[]")
-        backup_codes_remaining = len(backup_hashes) if isinstance(backup_hashes, list) else 0
-    except Exception:
-        backup_codes_remaining = 0
-
-    just_generated_backup_codes = session.pop("just_generated_backup_codes", None)
     has_password = bool(db_user.get("password_hash"))
 
     return render_template(
@@ -3769,146 +3852,70 @@ def user_profile():
         profile=profile_data,
         active_page="profile",
         two_factor_enabled=two_factor_enabled,
-        two_factor_method=two_factor_method,
         user_email=user_email,
-        setup_secret=setup_secret,
-        setup_secret_formatted=setup_secret_formatted,
-        otpauth_uri=otpauth_uri,
-        smtp_configured=is_smtp_configured(),
-        backup_codes_remaining=backup_codes_remaining,
-        just_generated_backup_codes=just_generated_backup_codes,
+        email_service_configured=is_email_service_configured(),
         has_password=has_password,
     )
 
 
-@app.route("/security/2fa/send-setup-otp", methods=["POST"])
+@app.route("/security/2fa/test-email", methods=["POST"])
 @login_required
-def send_setup_email_otp():
-    """Send 6-digit setup verification code before enabling Email 2SV."""
+def send_test_2fa_email():
+    """Send a test verification email from Profile Settings to verify inbox delivery."""
     user_id = session.get("user_id")
     user = db_query("SELECT * FROM users WHERE id = %s", (user_id,), fetchone=True)
     if not user or not user.get("email"):
         flash("Account email not found.", "error")
         return redirect(url_for("user_profile") + "#security-2fa")
 
-    if not is_smtp_configured():
-        flash("SMTP email configuration is missing on the server.", "error")
+    if not is_email_service_configured():
+        flash("Email delivery is not configured on the server yet.", "error")
         return redirect(url_for("user_profile") + "#security-2fa")
 
-    code = str(secrets.randbelow(900000) + 100000)
-    session["setup_email_otp_hash"] = generate_password_hash(code)
-    session["setup_email_otp_expires"] = int(time.time()) + 600
-    ok, err_msg = send_2fa_email_code(user["email"], code, user.get("name", "Developer"))
+    sample_code = str(secrets.randbelow(900000) + 100000)
+    ok, err_msg = send_2fa_verification_email(user["email"], sample_code, verify_url=None, user_name=user.get("name", "Developer"))
     if ok:
-        flash(f"Setup verification code sent to {user['email']}.", "success")
+        flash(f"Test verification email sent to {user['email']}. Check your inbox!", "success")
     else:
-        flash(f"Failed to send email: {err_msg}", "error")
+        flash(f"Could not send email: {err_msg}", "error")
     return redirect(url_for("user_profile") + "#security-2fa")
 
 
-@app.route("/security/2fa/enable", methods=["POST"])
+@app.route("/security/2fa/toggle", methods=["POST"])
 @login_required
-def enable_2fa():
-    """Verify setup code and activate 2-Step Verification (TOTP or Email OTP)."""
+def toggle_email_2fa():
+    """Turn Email 2-Step Verification on or off for the signed-in student."""
     user_id = session.get("user_id")
     user = db_query("SELECT * FROM users WHERE id = %s", (user_id,), fetchone=True)
     if not user:
         flash("User account not found.", "error")
         return redirect(url_for("user_profile") + "#security-2fa")
 
-    method = request.form.get("method", "totp").strip().lower()
-    raw_code = re.sub(r"[^0-9]", "", request.form.get("code", ""))
-
-    if len(raw_code) != 6:
-        flash("Please enter a valid 6-digit verification code.", "error")
-        return redirect(url_for("user_profile") + "#security-2fa")
-
-    if method == "email":
-        if not is_smtp_configured():
-            flash("SMTP must be configured to enable Email 2-Step Verification.", "error")
-            return redirect(url_for("user_profile") + "#security-2fa")
-        otp_hash = session.get("setup_email_otp_hash") or ""
-        otp_exp = int(session.get("setup_email_otp_expires", 0))
-        if not otp_hash or int(time.time()) > otp_exp or not check_password_hash(otp_hash, raw_code):
-            flash("Invalid or expired email verification code. Please send a new code and try again.", "error")
-            return redirect(url_for("user_profile") + "#security-2fa")
-        secret_to_save = ""
-    else:
-        method = "totp"
-        setup_secret = session.get("setup_totp_secret") or ""
-        if not setup_secret or not verify_totp_code(setup_secret, raw_code):
-            flash("Invalid 6-digit authenticator code. Make sure your device clock is accurate and try again.", "error")
-            return redirect(url_for("user_profile") + "#security-2fa")
-        secret_to_save = setup_secret
-
-    plain_codes, hashed_codes_json = generate_backup_codes(6)
-    db_query(
-        "UPDATE users SET two_factor_enabled = 1, two_factor_method = %s, two_factor_secret = %s, backup_codes_hash = %s WHERE id = %s",
-        (method, secret_to_save, hashed_codes_json, user_id),
-        commit=True
-    )
-    session.pop("setup_totp_secret", None)
-    session.pop("setup_email_otp_hash", None)
-    session.pop("setup_email_otp_expires", None)
-    session["just_generated_backup_codes"] = plain_codes
-    flash("2-Step Verification is now ENABLED! Save your backup recovery codes below.", "success")
-    return redirect(url_for("user_profile") + "#security-2fa")
-
-
-@app.route("/security/2fa/disable", methods=["POST"])
-@login_required
-def disable_2fa():
-    """Verify current password and turn off 2-Step Verification."""
-    user_id = session.get("user_id")
-    user = db_query("SELECT * FROM users WHERE id = %s", (user_id,), fetchone=True)
-    if not user:
-        flash("User account not found.", "error")
+    enable = request.form.get("enable") == "1"
+    if enable:
+        db_query(
+            "UPDATE users SET two_factor_enabled = 1, two_factor_method = 'email' WHERE id = %s",
+            (user_id,),
+            commit=True
+        )
+        flash("Email 2-Step Verification is now ACTIVE on login.", "success")
         return redirect(url_for("user_profile") + "#security-2fa")
 
     current_pw = request.form.get("current_password", "")
     stored_hash = user.get("password_hash") or ""
     if stored_hash and not verify_user_password(stored_hash, current_pw):
-        flash("Incorrect password. Enter your current password to disable 2-Step Verification.", "error")
+        flash("Incorrect password. Confirm your password to turn off Email 2-Step Verification.", "error")
         return redirect(url_for("user_profile") + "#security-2fa")
 
     db_query(
-        "UPDATE users SET two_factor_enabled = 0, two_factor_secret = '', backup_codes_hash = '' WHERE id = %s",
+        "UPDATE users SET two_factor_enabled = 0, two_factor_method = 'email' WHERE id = %s",
         (user_id,),
         commit=True
     )
-    session.pop("setup_totp_secret", None)
-    session.pop("just_generated_backup_codes", None)
-    flash("2-Step Verification has been disabled.", "success")
+    flash("Email 2-Step Verification has been turned off.", "success")
     resp = make_response(redirect(url_for("user_profile") + "#security-2fa"))
     resp.delete_cookie("skillstack_2fa_trust")
     return resp
-
-
-@app.route("/security/2fa/regenerate-codes", methods=["POST"])
-@login_required
-def regenerate_backup_codes():
-    """Verify password and replace one-time backup recovery codes."""
-    user_id = session.get("user_id")
-    user = db_query("SELECT * FROM users WHERE id = %s", (user_id,), fetchone=True)
-    if not user or not user.get("two_factor_enabled"):
-        flash("Enable 2-Step Verification first.", "error")
-        return redirect(url_for("user_profile") + "#security-2fa")
-
-    current_pw = request.form.get("current_password", "")
-    stored_hash = user.get("password_hash") or ""
-    if stored_hash and not verify_user_password(stored_hash, current_pw):
-        flash("Incorrect password. Could not regenerate backup codes.", "error")
-        return redirect(url_for("user_profile") + "#security-2fa")
-
-    plain_codes, hashed_codes_json = generate_backup_codes(6)
-    db_query(
-        "UPDATE users SET backup_codes_hash = %s WHERE id = %s",
-        (hashed_codes_json, user_id),
-        commit=True
-    )
-    session["just_generated_backup_codes"] = plain_codes
-    flash("New backup recovery codes generated. Previous codes are now invalid.", "success")
-    return redirect(url_for("user_profile") + "#security-2fa")
 
 
 @app.route("/security/change-password", methods=["POST"])

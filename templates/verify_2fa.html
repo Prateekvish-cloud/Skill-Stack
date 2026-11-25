@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}2-Step Verification — Skill Stack{% endblock %}
+{% block title %}Email Verification — Skill Stack{% endblock %}
 
 {% block content %}
 <div class="auth-screen">
-  <div class="auth-card auth-card-login" style="max-width:430px; width:100%;">
+  <div class="auth-card auth-card-login" style="max-width:440px; width:100%;">
 
     <!-- Brand & Step Indicator -->
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
@@ -14,17 +14,24 @@
     </div>
 
     <div style="width:48px; height:48px; border-radius:14px; background:rgba(255,167,38,0.14); border:1px solid rgba(255,167,38,0.35); display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:12px;">
-      🛡️
+      ✉️
     </div>
 
-    <h1 class="auth-title" style="margin:0 0 4px 0;">2-Step Verification</h1>
+    {% if verified_tab_only %}
+    <h1 class="auth-title" style="margin:0 0 6px 0;">Email Verified ✓</h1>
+    <p class="auth-sub" style="margin-bottom:18px;">
+      We confirmed it is you! Your sign-in for <strong style="color:var(--ink);">{{ masked_email }}</strong> has been approved. You can now close this page or return to your login window.
+    </p>
+    <a href="{{ url_for('login') }}" class="btn-primary auth-btn-full" style="text-align:center; text-decoration:none; display:block;">
+      Go to Login ↗
+    </a>
+    {% else %}
+    <h1 class="auth-title" style="margin:0 0 4px 0;">Check Your Email</h1>
     <p class="auth-sub" style="margin-bottom:16px;">
       {% if pending_reset %}
-        Verify your identity for <strong style="color:var(--ink);">{{ masked_email }}</strong> to confirm your password reset.
-      {% elif method == 'email' %}
-        Enter the 6-digit verification code sent to <strong style="color:var(--ink);">{{ masked_email }}</strong>.
+        We sent a verification mail to <strong style="color:var(--ink);">{{ masked_email }}</strong> to confirm your password reset.
       {% else %}
-        Enter the 6-digit code from your Authenticator app for <strong style="color:var(--ink);">{{ masked_email }}</strong>.
+        We sent a verification mail to <strong style="color:var(--ink);">{{ masked_email }}</strong>. Click the <strong>"Verify It's Me"</strong> button in the email, or enter the 6-digit code below.
       {% endif %}
     </p>
 
@@ -38,13 +45,17 @@
       {% endif %}
     {% endwith %}
 
-    <form method="POST" action="{{ url_for('verify_2fa') }}" class="auth-form" id="verify2faForm">
-      <input type="hidden" name="action" value="verify" id="verifyActionInput" />
-      <input type="hidden" name="use_backup" value="0" id="useBackupInput" />
+    <div id="liveWaitBanner" style="background:rgba(57,211,83,0.08); border:1px solid rgba(57,211,83,0.22); border-radius:10px; padding:10px 12px; font-size:12px; color:var(--muted); margin-bottom:16px; display:flex; align-items:center; gap:9px;">
+      <span style="width:8px; height:8px; border-radius:50%; background:#39d353; display:inline-block; flex-shrink:0;"></span>
+      <span>Waiting for verification from your inbox — clicking the link in your mail signs you in automatically.</span>
+    </div>
+
+    <form method="POST" action="{{ url_for('verify_2fa') }}" class="auth-form">
+      <input type="hidden" name="action" value="verify" />
 
       <div class="field">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <label for="otpCodeInput" id="codeLabel">6-Digit Verification Code</label>
+          <label for="otpCodeInput">6-Digit Email Code</label>
           <span style="font-size:11px; color:var(--muted);">{{ attempts_left }} attempt(s) left</span>
         </div>
         <input
@@ -53,7 +64,7 @@
           name="code"
           required
           autofocus
-          maxlength="12"
+          maxlength="6"
           inputmode="numeric"
           autocomplete="one-time-code"
           placeholder="000000"
@@ -69,57 +80,42 @@
       {% endif %}
 
       <button type="submit" class="btn-primary auth-btn-full" style="font-weight:700;">
-        Verify &amp; Continue ↗
+        Verify Code &amp; Sign In ↗
       </button>
     </form>
 
-    {% if method == 'email' %}
     <form method="POST" action="{{ url_for('verify_2fa') }}" style="margin-top:10px;">
       <input type="hidden" name="action" value="resend" />
       <button type="submit" style="width:100%; background:rgba(216,207,188,0.08); border:1px solid rgba(216,207,188,0.22); color:var(--ink); padding:9px; border-radius:10px; font-size:12px; font-weight:600; cursor:pointer;">
-        ✉️ Resend Verification Code
+        ✉️ Resend Verification Mail
       </button>
     </form>
-    {% endif %}
 
     <div class="auth-footer-links" style="margin-top:18px; padding-top:14px; border-top:1px solid rgba(216,207,188,0.12); font-size:12px;">
-      <button type="button" onclick="toggleBackupMode()" id="toggleBackupBtn" style="background:none; border:none; color:#ffa726; font-weight:600; cursor:pointer; padding:0; text-decoration:underline;">
-        Use Backup Recovery Code
-      </button>
-      <a href="{{ url_for('cancel_2fa') }}" style="color:var(--muted);">← Back to Login</a>
+      <span style="color:var(--muted);">Code expires in 10 minutes</span>
+      <a href="{{ url_for('cancel_2fa') }}" style="color:#ffa726; font-weight:600;">← Back to Login</a>
     </div>
+    {% endif %}
 
   </div>
 </div>
 
+{% if not verified_tab_only %}
 <script>
-  let backupMode = false;
-  function toggleBackupMode() {
-    backupMode = !backupMode;
-    const input = document.getElementById('otpCodeInput');
-    const label = document.getElementById('codeLabel');
-    const btn = document.getElementById('toggleBackupBtn');
-    const hiddenFlag = document.getElementById('useBackupInput');
-
-    if (backupMode) {
-      hiddenFlag.value = '1';
-      label.textContent = '8-Character Backup Recovery Code';
-      input.placeholder = 'ABCD-1234';
-      input.inputMode = 'text';
-      input.style.letterSpacing = '3px';
-      input.style.fontSize = '18px';
-      btn.textContent = 'Use 6-Digit Verification Code';
-    } else {
-      hiddenFlag.value = '0';
-      label.textContent = '6-Digit Verification Code';
-      input.placeholder = '000000';
-      input.inputMode = 'numeric';
-      input.style.letterSpacing = '8px';
-      input.style.fontSize = '22px';
-      btn.textContent = 'Use Backup Recovery Code';
-    }
-    input.value = '';
-    input.focus();
-  }
+  (function pollEmailApproval() {
+    setInterval(function() {
+      fetch("{{ url_for('api_2fa_status') }}", { credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data && data.approved && data.redirect) {
+            window.location.href = data.redirect;
+          } else if (data && data.expired) {
+            window.location.href = "{{ url_for('login') }}";
+          }
+        })
+        .catch(function() {});
+    }, 2200);
+  })();
 </script>
+{% endif %}
 {% endblock %}

@@ -122,122 +122,77 @@
       </form>
     </div>
 
-    <!-- Security & 2-Step Verification Panel -->
+    <!-- Security & 2-Step Email Verification Panel -->
     <div class="panel" id="security-2fa" style="margin-top:24px;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
         <div>
-          <h2 style="margin:0;">🔐 2-Step Verification</h2>
-          <p style="font-size:12.5px; color:var(--muted); margin:4px 0 0 0;">Protect your SkillStack account with a second verification step at sign-in.</p>
+          <h2 style="margin:0;">📧 2-Step Email Verification</h2>
+          <p style="font-size:12.5px; color:var(--muted); margin:4px 0 0 0;">Whenever you sign in with your email &amp; password, SkillStack sends a verification mail to <strong style="color:var(--ink);">{{ user_email }}</strong> so you can verify it's you.</p>
         </div>
-        {% if two_factor_enabled %}
+        {% if two_factor_enabled and email_service_configured %}
         <span style="font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:999px; background:rgba(57,211,83,0.16); color:#39d353; border:1px solid rgba(57,211,83,0.35);">
-          ✓ ENABLED ({{ 'Authenticator App' if two_factor_method == 'totp' else 'Email OTP' }})
+          ✓ ACTIVE ON LOGIN
         </span>
-        {% else %}
+        {% elif two_factor_enabled and not email_service_configured %}
         <span style="font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:999px; background:rgba(255,167,38,0.14); color:#ffa726; border:1px solid rgba(255,167,38,0.35);">
-          ⚠️ NOT ENABLED
+          ⚠️ WAITING FOR EMAIL SERVER CONFIG
+        </span>
+        {% else %}
+        <span style="font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:999px; background:rgba(216,207,188,0.12); color:var(--muted); border:1px solid rgba(216,207,188,0.25);">
+          PAUSED
         </span>
         {% endif %}
       </div>
 
-      {% if just_generated_backup_codes %}
-      <div style="background:rgba(57,211,83,0.1); border:1px solid rgba(57,211,83,0.35); border-radius:12px; padding:16px; margin-bottom:18px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-          <strong style="color:#39d353; font-size:13.5px;">🛡️ Save Your One-Time Backup Recovery Codes</strong>
-          <div style="display:flex; gap:8px;">
-            <button type="button" onclick="copyBackupCodes()" style="background:rgba(57,211,83,0.2); border:1px solid rgba(57,211,83,0.4); color:#39d353; font-size:11px; font-weight:700; padding:5px 10px; border-radius:6px; cursor:pointer;">Copy Codes</button>
-            <button type="button" onclick="downloadBackupCodes()" style="background:rgba(216,207,188,0.12); border:1px solid rgba(216,207,188,0.25); color:var(--ink); font-size:11px; font-weight:700; padding:5px 10px; border-radius:6px; cursor:pointer;">Download .txt</button>
-          </div>
-        </div>
-        <p style="font-size:12px; color:var(--muted); margin:0 0 10px 0;">Store these codes somewhere safe. Each code works once if you lose access to your authenticator or email:</p>
-        <div id="backupCodesGrid" style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:8px;">
-          {% for code in just_generated_backup_codes %}
-          <code class="recovery-code-item" style="background:rgba(20,21,16,0.9); border:1px solid rgba(216,207,188,0.2); padding:8px; border-radius:8px; text-align:center; font-size:13px; font-weight:700; color:var(--ink); letter-spacing:1px;">{{ code }}</code>
-          {% endfor %}
-        </div>
-      </div>
-      {% endif %}
-
-      {% if not two_factor_enabled %}
-      <!-- Method Selector -->
-      <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
-        <button type="button" id="btnMethodTotp" onclick="switch2faMethod('totp')" class="btn-primary" style="padding:8px 14px; font-size:12.5px;">📱 Authenticator App (Recommended)</button>
-        <button type="button" id="btnMethodEmail" onclick="switch2faMethod('email')" class="btn-secondary" style="padding:8px 14px; font-size:12.5px;">✉️ Email Code (OTP)</button>
-      </div>
-
-      <!-- Setup Option 1: TOTP Authenticator -->
-      <div id="setupTotpPanel" style="background:rgba(20,21,16,0.55); border:1px solid rgba(216,207,188,0.2); border-radius:12px; padding:18px;">
-        <div style="display:grid; grid-template-columns: auto 1fr; gap:20px; align-items:center;">
-          <div style="background:#ffffff; padding:10px; border-radius:10px; width:156px; height:156px; display:flex; align-items:center; justify-content:center;" id="totpQrWrapper">
-            <div id="totpQrCode"></div>
-          </div>
-          <div>
-            <h3 style="margin:0 0 6px 0; font-size:15px;">1. Scan QR Code in Authenticator App</h3>
-            <p style="font-size:12.5px; color:var(--muted); margin:0 0 10px 0;">Use Google Authenticator, Authy, or Microsoft Authenticator to scan this QR code, or enter the setup key manually:</p>
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
-              <code id="manualTotpKey" style="background:rgba(35,36,28,0.9); border:1px solid rgba(216,207,188,0.25); padding:6px 10px; border-radius:8px; font-size:12.5px; color:#ffa726; letter-spacing:1.2px;">{{ setup_secret_formatted }}</code>
-              <button type="button" onclick="copySetupKey('{{ setup_secret }}', this)" style="background:rgba(216,207,188,0.12); border:1px solid rgba(216,207,188,0.25); color:var(--ink); font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:8px; cursor:pointer;">Copy Key</button>
-              <a href="{{ otpauth_uri }}" style="font-size:11.5px; color:#ffa726; font-weight:600; text-decoration:underline;">Open App ↗</a>
-            </div>
-            <form action="{{ url_for('enable_2fa') }}" method="POST" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-              <input type="hidden" name="method" value="totp" />
-              <input type="text" name="code" required maxlength="6" inputmode="numeric" placeholder="Enter 6-digit code" style="width:170px; padding:9px 12px; border-radius:9px; border:1px solid var(--border); background:rgba(15,20,18,0.85); color:var(--ink); font-family:monospace; font-size:15px; font-weight:700; text-align:center; letter-spacing:4px;" />
-              <button type="submit" class="btn-primary" style="padding:9px 16px; font-size:12.5px;">Verify &amp; Activate 2SV ✓</button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- Setup Option 2: Email OTP -->
-      <div id="setupEmailPanel" style="display:none; background:rgba(20,21,16,0.55); border:1px solid rgba(216,207,188,0.2); border-radius:12px; padding:18px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-          <h3 style="margin:0; font-size:15px;">Email One-Time Passcode ({{ user_email }})</h3>
-          <span style="font-size:11px; font-weight:700; padding:3px 8px; border-radius:6px; background:{{ 'rgba(57,211,83,0.15)' if smtp_configured else 'rgba(255,167,38,0.15)' }}; color:{{ '#39d353' if smtp_configured else '#ffa726' }};">
-            {{ 'SMTP Ready ✓' if smtp_configured else 'SMTP Not Configured' }}
-          </span>
-        </div>
-        {% if smtp_configured %}
-        <p style="font-size:12.5px; color:var(--muted); margin:0 0 12px 0;">Send a verification code to <strong>{{ user_email }}</strong> to confirm email delivery before enabling.</p>
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <form action="{{ url_for('send_setup_email_otp') }}" method="POST" style="margin:0;">
-            <button type="submit" class="btn-secondary" style="padding:9px 14px; font-size:12.5px;">✉️ Send Test Code</button>
-          </form>
-          <form action="{{ url_for('enable_2fa') }}" method="POST" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:0;">
-            <input type="hidden" name="method" value="email" />
-            <input type="text" name="code" required maxlength="6" inputmode="numeric" placeholder="6-digit code" style="width:150px; padding:9px 12px; border-radius:9px; border:1px solid var(--border); background:rgba(15,20,18,0.85); color:var(--ink); font-family:monospace; font-size:15px; font-weight:700; text-align:center; letter-spacing:4px;" />
-            <button type="submit" class="btn-primary" style="padding:9px 16px; font-size:12.5px;">Enable Email 2SV ✓</button>
-          </form>
-        </div>
-        {% else %}
-        <p style="font-size:12.5px; color:var(--muted); margin:0;">
-          Outbound email delivery requires <code>SMTP_HOST</code>, <code>SMTP_USER</code>, and <code>SMTP_PASS</code> in your environment configuration. Use <strong>Authenticator App (TOTP)</strong> right now — it works offline and on any host with zero setup.
+      {% if not email_service_configured %}
+      <div style="background:rgba(255,167,38,0.08); border:1px solid rgba(255,167,38,0.3); border-radius:12px; padding:16px; margin-bottom:14px;">
+        <div style="font-weight:700; color:#ffa726; font-size:13.5px; margin-bottom:6px;">Email Sender Not Configured Yet</div>
+        <p style="font-size:12.5px; color:var(--muted); margin:0 0 10px 0;">
+          To deliver real verification emails to <strong>{{ user_email }}</strong> during login, add either <strong>Gmail SMTP</strong> or <strong>Resend API</strong> environment variables in your <code>.env</code> file (local) or Render Environment Settings (live):
         </p>
-        {% endif %}
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
+          <div style="background:rgba(20,21,16,0.85); border:1px solid rgba(216,207,188,0.18); border-radius:10px; padding:12px; font-size:12px;">
+            <div style="font-weight:700; color:var(--ink); margin-bottom:6px;">Option A: Gmail App Password (SMTP)</div>
+            <pre style="margin:0; font-size:11px; color:#D8CFBC; white-space:pre-wrap; line-height:1.5;">SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_16_char_app_password</pre>
+          </div>
+          <div style="background:rgba(20,21,16,0.85); border:1px solid rgba(216,207,188,0.18); border-radius:10px; padding:12px; font-size:12px;">
+            <div style="font-weight:700; color:var(--ink); margin-bottom:6px;">Option B: Resend HTTP API (Cloud Recommended)</div>
+            <pre style="margin:0; font-size:11px; color:#D8CFBC; white-space:pre-wrap; line-height:1.5;">RESEND_API_KEY=re_xxxxxxxxxxxxx
+SMTP_FROM=onboarding@resend.dev</pre>
+          </div>
+        </div>
       </div>
-
       {% else %}
-      <!-- Active 2SV Management -->
       <div style="background:rgba(20,21,16,0.55); border:1px solid rgba(57,211,83,0.25); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div style="font-size:13px; color:var(--ink);">
-            Remaining one-time backup recovery codes: <strong>{{ backup_codes_remaining }}</strong>
+            Verification mails are delivered to <strong>{{ user_email }}</strong> with a <strong>Verify It's Me</strong> link &amp; 6-digit code.
           </div>
-          <form action="{{ url_for('regenerate_backup_codes') }}" method="POST" style="display:flex; gap:8px; align-items:center; margin:0;">
-            {% if has_password %}
-            <input type="password" name="current_password" required placeholder="Current password" style="padding:7px 10px; border-radius:8px; border:1px solid var(--border); background:rgba(15,20,18,0.85); color:var(--ink); font-size:12px;" />
-            {% endif %}
-            <button type="submit" class="btn-secondary" style="padding:7px 12px; font-size:12px;">🔄 Regenerate Backup Codes</button>
+          <form action="{{ url_for('send_test_2fa_email') }}" method="POST" style="margin:0;">
+            <button type="submit" class="btn-secondary" style="padding:7px 14px; font-size:12px;">✉️ Send Test Verification Mail</button>
           </form>
         </div>
 
         <div style="border-top:1px solid rgba(216,207,188,0.12); padding-top:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-          <span style="font-size:12px; color:var(--muted);">Need to turn off 2-Step Verification? Enter your password to disable.</span>
-          <form action="{{ url_for('disable_2fa') }}" method="POST" style="display:flex; gap:8px; align-items:center; margin:0;">
+          {% if two_factor_enabled %}
+          <span style="font-size:12px; color:var(--muted);">Email 2-Step Verification is required on every new browser login.</span>
+          <form action="{{ url_for('toggle_email_2fa') }}" method="POST" style="display:flex; gap:8px; align-items:center; margin:0;">
+            <input type="hidden" name="enable" value="0" />
             {% if has_password %}
             <input type="password" name="current_password" required placeholder="Confirm password" style="padding:7px 10px; border-radius:8px; border:1px solid var(--border); background:rgba(15,20,18,0.85); color:var(--ink); font-size:12px;" />
             {% endif %}
-            <button type="submit" style="background:rgba(255,82,82,0.16); border:1px solid rgba(255,82,82,0.4); color:#ff7979; padding:7px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">Disable 2SV</button>
+            <button type="submit" style="background:rgba(255,82,82,0.16); border:1px solid rgba(255,82,82,0.4); color:#ff7979; padding:7px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">Turn Off Email 2SV</button>
           </form>
+          {% else %}
+          <span style="font-size:12px; color:var(--muted);">Turn on Email 2-Step Verification to require email confirmation when logging in.</span>
+          <form action="{{ url_for('toggle_email_2fa') }}" method="POST" style="margin:0;">
+            <input type="hidden" name="enable" value="1" />
+            <button type="submit" class="btn-primary" style="padding:7px 14px; font-size:12px;">Enable Email 2SV ✓</button>
+          </form>
+          {% endif %}
         </div>
       </div>
       {% endif %}
@@ -269,73 +224,5 @@
     </div>
   </main>
 </div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script>
-  (function() {
-    var qrEl = document.getElementById('totpQrCode');
-    var uri = {{ otpauth_uri | tojson }};
-    if (qrEl && uri && typeof QRCode !== 'undefined') {
-      new QRCode(qrEl, {
-        text: uri,
-        width: 136,
-        height: 136,
-        colorDark: '#141511',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M
-      });
-    } else if (qrEl) {
-      qrEl.innerHTML = '<span style="font-size:11px; color:#333; text-align:center; display:block; padding:8px;">Enter the Manual Key on the right in your app</span>';
-    }
-  })();
-
-  function switch2faMethod(method) {
-    var totpPanel = document.getElementById('setupTotpPanel');
-    var emailPanel = document.getElementById('setupEmailPanel');
-    var btnTotp = document.getElementById('btnMethodTotp');
-    var btnEmail = document.getElementById('btnMethodEmail');
-    if (method === 'email') {
-      if (totpPanel) totpPanel.style.display = 'none';
-      if (emailPanel) emailPanel.style.display = 'block';
-      if (btnTotp) { btnTotp.className = 'btn-secondary'; }
-      if (btnEmail) { btnEmail.className = 'btn-primary'; }
-    } else {
-      if (totpPanel) totpPanel.style.display = 'block';
-      if (emailPanel) emailPanel.style.display = 'none';
-      if (btnTotp) { btnTotp.className = 'btn-primary'; }
-      if (btnEmail) { btnEmail.className = 'btn-secondary'; }
-    }
-  }
-
-  function copySetupKey(secret, btn) {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(secret).then(function() {
-        btn.textContent = 'Copied ✓';
-        setTimeout(function() { btn.textContent = 'Copy Key'; }, 1800);
-      });
-    }
-  }
-
-  function getRecoveryCodesText() {
-    var items = document.querySelectorAll('.recovery-code-item');
-    return Array.from(items).map(function(el) { return el.textContent.trim(); }).join('\n');
-  }
-
-  function copyBackupCodes() {
-    var txt = getRecoveryCodesText();
-    if (txt && navigator.clipboard) {
-      navigator.clipboard.writeText(txt);
-    }
-  }
-
-  function downloadBackupCodes() {
-    var txt = 'SkillStack 2-Step Verification Backup Recovery Codes\nKeep these secure (one-time use each):\n\n' + getRecoveryCodesText() + '\n';
-    var blob = new Blob([txt], { type: 'text/plain' });
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'skillstack-backup-codes.txt';
-    a.click();
-  }
-</script>
 {% endblock %}
 
