@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}2-Step Verification — Skill Stack{% endblock %}
+
+{% block content %}
+<div class="auth-screen">
+  <div class="auth-card auth-card-login" style="max-width:430px; width:100%;">
+
+    <!-- Brand & Step Indicator -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <div class="brand" style="margin:0;">Skill<span>Stack</span></div>
+      <span style="font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:999px; background:rgba(57,211,83,0.14); color:#39d353; border:1px solid rgba(57,211,83,0.3); letter-spacing:0.4px;">
+        STEP 2 OF 2
+      </span>
+    </div>
+
+    <div style="width:48px; height:48px; border-radius:14px; background:rgba(255,167,38,0.14); border:1px solid rgba(255,167,38,0.35); display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:12px;">
+      🛡️
+    </div>
+
+    <h1 class="auth-title" style="margin:0 0 4px 0;">2-Step Verification</h1>
+    <p class="auth-sub" style="margin-bottom:16px;">
+      {% if pending_reset %}
+        Verify your identity for <strong style="color:var(--ink);">{{ masked_email }}</strong> to confirm your password reset.
+      {% elif method == 'email' %}
+        Enter the 6-digit verification code sent to <strong style="color:var(--ink);">{{ masked_email }}</strong>.
+      {% else %}
+        Enter the 6-digit code from your Authenticator app for <strong style="color:var(--ink);">{{ masked_email }}</strong>.
+      {% endif %}
+    </p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="flash flash-{{ category if category != 'message' else 'success' }}" style="margin-bottom:16px;">
+            {{ msg }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('verify_2fa') }}" class="auth-form" id="verify2faForm">
+      <input type="hidden" name="action" value="verify" id="verifyActionInput" />
+      <input type="hidden" name="use_backup" value="0" id="useBackupInput" />
+
+      <div class="field">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label for="otpCodeInput" id="codeLabel">6-Digit Verification Code</label>
+          <span style="font-size:11px; color:var(--muted);">{{ attempts_left }} attempt(s) left</span>
+        </div>
+        <input
+          type="text"
+          id="otpCodeInput"
+          name="code"
+          required
+          autofocus
+          maxlength="12"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          placeholder="000000"
+          style="text-align:center; font-family:monospace; font-size:22px; font-weight:800; letter-spacing:8px; padding:13px;"
+        />
+      </div>
+
+      {% if not pending_reset %}
+      <label style="display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--muted); cursor:pointer; user-select:none;">
+        <input type="checkbox" name="trust_device" value="1" style="width:16px; height:16px; accent-color:#ffa726;" />
+        <span>Trust this browser for 30 days</span>
+      </label>
+      {% endif %}
+
+      <button type="submit" class="btn-primary auth-btn-full" style="font-weight:700;">
+        Verify &amp; Continue ↗
+      </button>
+    </form>
+
+    {% if method == 'email' %}
+    <form method="POST" action="{{ url_for('verify_2fa') }}" style="margin-top:10px;">
+      <input type="hidden" name="action" value="resend" />
+      <button type="submit" style="width:100%; background:rgba(216,207,188,0.08); border:1px solid rgba(216,207,188,0.22); color:var(--ink); padding:9px; border-radius:10px; font-size:12px; font-weight:600; cursor:pointer;">
+        ✉️ Resend Verification Code
+      </button>
+    </form>
+    {% endif %}
+
+    <div class="auth-footer-links" style="margin-top:18px; padding-top:14px; border-top:1px solid rgba(216,207,188,0.12); font-size:12px;">
+      <button type="button" onclick="toggleBackupMode()" id="toggleBackupBtn" style="background:none; border:none; color:#ffa726; font-weight:600; cursor:pointer; padding:0; text-decoration:underline;">
+        Use Backup Recovery Code
+      </button>
+      <a href="{{ url_for('cancel_2fa') }}" style="color:var(--muted);">← Back to Login</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let backupMode = false;
+  function toggleBackupMode() {
+    backupMode = !backupMode;
+    const input = document.getElementById('otpCodeInput');
+    const label = document.getElementById('codeLabel');
+    const btn = document.getElementById('toggleBackupBtn');
+    const hiddenFlag = document.getElementById('useBackupInput');
+
+    if (backupMode) {
+      hiddenFlag.value = '1';
+      label.textContent = '8-Character Backup Recovery Code';
+      input.placeholder = 'ABCD-1234';
+      input.inputMode = 'text';
+      input.style.letterSpacing = '3px';
+      input.style.fontSize = '18px';
+      btn.textContent = 'Use 6-Digit Verification Code';
+    } else {
+      hiddenFlag.value = '0';
+      label.textContent = '6-Digit Verification Code';
+      input.placeholder = '000000';
+      input.inputMode = 'numeric';
+      input.style.letterSpacing = '8px';
+      input.style.fontSize = '22px';
+      btn.textContent = 'Use Backup Recovery Code';
+    }
+    input.value = '';
+    input.focus();
+  }
+</script>
+{% endblock %}

@@ -1,12 +1,21 @@
 import os
 import re
 import json
+import time
+import hmac
+import hashlib
+import struct
+import base64
+import secrets
+import smtplib
 import sqlite3
 import threading
 import urllib.request
+from email.message import EmailMessage
+from urllib.parse import quote
 from datetime import datetime, timedelta
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 from mysql.connector import Error
@@ -238,6 +247,10 @@ def init_db_tables():
                     github_url TEXT,
                     linkedin_url TEXT,
                     role TEXT DEFAULT 'student',
+                    two_factor_enabled INTEGER DEFAULT 0,
+                    two_factor_method TEXT DEFAULT 'totp',
+                    two_factor_secret TEXT,
+                    backup_codes_hash TEXT,
                     created_at TIMESTAMP
                 );
             """)
@@ -346,6 +359,136 @@ def init_db_tables():
                     created_at TIMESTAMP
                 );
             """)
+        elif DB_MODE == "postgres":
+            pg_tables = [
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(120) NOT NULL,
+                    email VARCHAR(120) UNIQUE NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    headline VARCHAR(255) DEFAULT 'Competitive Programmer & Developer',
+                    college VARCHAR(255) DEFAULT 'IMS Engineering College',
+                    location VARCHAR(150) DEFAULT 'Delhi NCR, India',
+                    bio TEXT,
+                    github_url VARCHAR(255),
+                    linkedin_url VARCHAR(255),
+                    role VARCHAR(50) DEFAULT 'student',
+                    two_factor_enabled INTEGER DEFAULT 0,
+                    two_factor_method VARCHAR(32) DEFAULT 'totp',
+                    two_factor_secret TEXT,
+                    backup_codes_hash TEXT,
+                    created_at TIMESTAMP
+                );
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS coding_profiles (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    platform VARCHAR(40) NOT NULL,
+                    username VARCHAR(120) NOT NULL,
+                    problems_solved INT DEFAULT 0,
+                    rating VARCHAR(100) DEFAULT '—',
+                    solved_label VARCHAR(100) DEFAULT '0 Solved',
+                    connected BOOLEAN DEFAULT TRUE,
+                    last_synced TIMESTAMP,
+                    UNIQUE (user_id, platform)
+                );
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS sync_logs (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    platform VARCHAR(40) NOT NULL,
+                    status VARCHAR(50) NOT NULL,
+                    message TEXT,
+                    created_at TIMESTAMP NOT NULL
+                );
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS projects (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    title VARCHAR(200) NOT NULL,
+                    description TEXT,
+                    stars INT DEFAULT 1,
+                    forks INT DEFAULT 0,
+                    tags VARCHAR(255),
+                    repo_url VARCHAR(255),
+                    demo_url VARCHAR(255),
+                    created_at TIMESTAMP
+                );
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS badges (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    badge_name VARCHAR(150) NOT NULL,
+                    earned_at TIMESTAMP
+                );
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS announcements (
+                    id SERIAL PRIMARY KEY,
+                    title VARCHAR(200) NOT NULL,
+                    content TEXT NOT NULL,
+                    priority VARCHAR(50) DEFAULT 'normal',
+                    author VARCHAR(100) DEFAULT 'Educator Console',
+                    created_at TIMESTAMP
+                );
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS assignments (
+                    id SERIAL PRIMARY KEY,
+                    title VARCHAR(200) NOT NULL,
+                    description TEXT,
+                    dsa_topic VARCHAR(100) DEFAULT 'General DSA',
+                    deadline VARCHAR(100),
+                    problems_json TEXT,
+                    created_at TIMESTAMP
+                );
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS custom_badges (
+                    id SERIAL PRIMARY KEY,
+                    badge_name VARCHAR(150) NOT NULL,
+                    badge_icon VARCHAR(50) DEFAULT '🏆',
+                    description TEXT,
+                    created_at TIMESTAMP
+                );
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS user_custom_badges (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    badge_id INT NOT NULL,
+                    awarded_at TIMESTAMP
+                );
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS nudges (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    message TEXT NOT NULL,
+                    sent_at TIMESTAMP
+                );
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS user_solved_problems (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    problem_id VARCHAR(255),
+                    title VARCHAR(255) NOT NULL,
+                    num VARCHAR(100),
+                    topic VARCHAR(100),
+                    diff VARCHAR(50),
+                    platform VARCHAR(50),
+                    created_at TIMESTAMP
+                );
+                """
+            ]
+            for stmt in pg_tables:
+                cursor.execute(stmt)
         else:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
@@ -360,6 +503,10 @@ def init_db_tables():
                     github_url VARCHAR(255),
                     linkedin_url VARCHAR(255),
                     role VARCHAR(50) DEFAULT 'student',
+                    two_factor_enabled TINYINT(1) DEFAULT 0,
+                    two_factor_method VARCHAR(32) DEFAULT 'totp',
+                    two_factor_secret TEXT,
+                    backup_codes_hash TEXT,
                     created_at DATETIME
                 );
             """)
@@ -474,13 +621,28 @@ def init_db_tables():
         conn.commit()
 
         # Migration helper: ensure all required columns exist in users table (separate try)
-        user_cols = ["headline", "college", "location", "bio", "github_url", "linkedin_url", "role"]
-        for col in user_cols:
+        user_cols = [
+            ("headline", "TEXT"),
+            ("college", "TEXT"),
+            ("location", "TEXT"),
+            ("bio", "TEXT"),
+            ("github_url", "TEXT"),
+            ("linkedin_url", "TEXT"),
+            ("role", "TEXT"),
+            ("two_factor_enabled", "INTEGER DEFAULT 0"),
+            ("two_factor_method", "VARCHAR(32) DEFAULT 'totp'"),
+            ("two_factor_secret", "TEXT"),
+            ("backup_codes_hash", "TEXT")
+        ]
+        for col, col_type in user_cols:
             try:
-                cursor.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT")
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {col} {col_type}")
                 conn.commit()
             except Exception:
-                pass
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
 
         # Migration helper: ensure all required columns exist in projects table
         proj_cols = [
@@ -495,7 +657,10 @@ def init_db_tables():
                 cursor.execute(f"ALTER TABLE projects ADD COLUMN {col_name} {col_type}")
                 conn.commit()
             except Exception:
-                pass
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
 
         # Ensure schema updates are committed
         conn.commit()
@@ -754,8 +919,8 @@ def restore_persistent_state_to_db():
                 updates = []
                 params = []
                 ex_hash = existing.get("password_hash") or ""
-                # Clear bogus test password hashes or adopt fresh authentication flow
-                if not pw_hash or ex_hash in BOGUS_TEST_HASHES:
+                # Only clear known bogus test hashes; never wipe a user's valid existing password hash
+                if ex_hash in BOGUS_TEST_HASHES:
                     updates.append("password_hash = %s")
                     params.append(pw_hash or "")
                 elif pw_hash and not ex_hash:
@@ -1409,31 +1574,250 @@ def verify_user_password(stored_hash, input_password):
     return False
 
 
-@app.route("/quick-login", methods=["GET", "POST"])
-def quick_login():
-    """1-Click Instant Developer Access route."""
-    raw_email = request.args.get("email") or request.form.get("email") or "vishpratee2004@gmail.com"
-    users = find_user_by_identifier(raw_email)
-    if not users:
-        restore_persistent_state_to_db()
-        users = find_user_by_identifier(raw_email)
+def generate_totp_secret():
+    """Generate a 160-bit Base32 secret compatible with Google Authenticator / Authy."""
+    return base64.b32encode(secrets.token_bytes(20)).decode("ascii").rstrip("=")
 
-    if not users:
-        all_u = db_query("SELECT * FROM users ORDER BY id ASC LIMIT 1", fetchall=True)
-        if all_u:
-            users = all_u
 
-    if users:
-        user = users[0]
-        session.permanent = True
-        session["user_id"] = user["id"]
-        session["user_name"] = user["name"]
-        session["is_admin"] = user.get("role") == "admin"
-        flash(f"Welcome back, {user['name']}! (Instant 1-Click Access ⚡)", "success")
-        return redirect(url_for("dashboard"))
+def compute_totp(secret, for_time=None, step=30, digits=6):
+    """Compute a 6-digit RFC 6238 SHA1 TOTP code."""
+    clean = (secret or "").strip().replace(" ", "").upper()
+    if not clean:
+        return ""
+    clean += "=" * ((8 - len(clean) % 8) % 8)
+    key = base64.b32decode(clean)
+    ts = int(time.time() if for_time is None else for_time)
+    counter = ts // step
+    msg = struct.pack(">Q", counter)
+    digest = hmac.new(key, msg, hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    code_int = struct.unpack(">I", digest[offset:offset + 4])[0] & 0x7FFFFFFF
+    return str(code_int % (10 ** digits)).zfill(digits)
 
-    flash("Could not find user profile for quick login.", "error")
-    return redirect(url_for("login"))
+
+def verify_totp_code(secret, code, window=1):
+    """Verify a 6-digit TOTP code with +/- window step drift tolerance."""
+    cleaned = re.sub(r"[^0-9]", "", (code or ""))
+    if len(cleaned) != 6 or not secret:
+        return False
+    now = int(time.time())
+    try:
+        for delta in range(-window, window + 1):
+            expected = compute_totp(secret, for_time=now + (delta * 30))
+            if expected and hmac.compare_digest(expected, cleaned):
+                return True
+    except Exception as e:
+        print("Notice verifying TOTP code:", e)
+    return False
+
+
+def build_otpauth_uri(email, secret, issuer="SkillStack"):
+    """Build standard otpauth:// URI for Authenticator apps."""
+    label = quote(f"{issuer}:{email}")
+    return f"otpauth://totp/{label}?secret={secret}&issuer={quote(issuer)}&algorithm=SHA1&digits=6&period=30"
+
+
+def generate_backup_codes(count=6):
+    """Generate human-readable one-time recovery codes and their secure hashes."""
+    plain_codes = []
+    hashed_codes = []
+    for _ in range(count):
+        raw = secrets.token_hex(4).upper()
+        formatted = f"{raw[:4]}-{raw[4:]}"
+        plain_codes.append(formatted)
+        hashed_codes.append(generate_password_hash(raw))
+    return plain_codes, json.dumps(hashed_codes)
+
+
+def verify_and_consume_backup_code(user, entered_code):
+    """Check recovery code against stored hashes and consume on single use."""
+    norm = re.sub(r"[^A-Z0-9]", "", (entered_code or "").upper())
+    if len(norm) < 6:
+        return False, 0
+    try:
+        stored_hashes = json.loads(user.get("backup_codes_hash") or "[]")
+    except Exception:
+        stored_hashes = []
+    if not isinstance(stored_hashes, list) or not stored_hashes:
+        return False, 0
+
+    for idx, h in enumerate(stored_hashes):
+        if h and check_password_hash(h, norm):
+            remaining = stored_hashes[:idx] + stored_hashes[idx + 1:]
+            db_query(
+                "UPDATE users SET backup_codes_hash = %s WHERE id = %s",
+                (json.dumps(remaining), user["id"]),
+                commit=True
+            )
+            return True, len(remaining)
+    return False, len(stored_hashes)
+
+
+def mask_email(email):
+    """Mask email address cleanly for display during Step 2 verification."""
+    e = (email or "").strip()
+    if "@" not in e:
+        return "***"
+    local, domain = e.split("@", 1)
+    if len(local) <= 2:
+        masked_local = local[0] + "*"
+    else:
+        masked_local = local[0] + ("*" * min(5, len(local) - 2)) + local[-1]
+    return f"{masked_local}@{domain}"
+
+
+def is_smtp_configured():
+    """Return True if outbound SMTP environment variables are configured."""
+    return bool(
+        os.getenv("SMTP_HOST", "").strip()
+        and os.getenv("SMTP_USER", "").strip()
+        and os.getenv("SMTP_PASS", "").strip()
+    )
+
+
+def send_2fa_email_code(to_email, code, user_name="Developer"):
+    """Send 6-digit 2-Step Verification code via configured SMTP server."""
+    if not is_smtp_configured() or not to_email:
+        return False, "SMTP email delivery is not configured on this server."
+
+    host = os.getenv("SMTP_HOST", "").strip()
+    port = int(os.getenv("SMTP_PORT", "587") or 587)
+    smtp_user = os.getenv("SMTP_USER", "").strip()
+    smtp_pass = os.getenv("SMTP_PASS", "").strip()
+    from_addr = os.getenv("SMTP_FROM", smtp_user).strip()
+
+    msg = EmailMessage()
+    msg["Subject"] = f"SkillStack Verification Code: {code}"
+    msg["From"] = f"SkillStack Security <{from_addr}>"
+    msg["To"] = to_email
+    msg.set_content(
+        f"Hi {user_name},\n\n"
+        f"Your SkillStack 2-Step Verification code is: {code}\n\n"
+        f"This code expires in 10 minutes. If you did not try to sign in, you can safely ignore this email."
+    )
+    msg.add_alternative(
+        f"""
+        <div style="font-family:Inter,Arial,sans-serif;background:#141511;color:#F2EFE9;padding:28px;border-radius:12px;max-width:460px;">
+          <h2 style="margin:0 0 8px 0;color:#D8CFBC;">SkillStack 2-Step Verification</h2>
+          <p style="margin:0 0 18px 0;color:#A8A295;font-size:14px;">Hi {user_name}, enter the code below to complete your sign-in:</p>
+          <div style="background:#1E1F19;border:1px solid #ffa726;border-radius:10px;padding:16px;text-align:center;font-size:28px;font-weight:800;letter-spacing:8px;color:#ffa726;">
+            {code}
+          </div>
+          <p style="margin:18px 0 0 0;color:#7A7668;font-size:12px;">Expires in 10 minutes. Never share this code with anyone.</p>
+        </div>
+        """,
+        subtype="html"
+    )
+
+    try:
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, timeout=10) as server:
+                server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=10) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+        return True, "Verification code sent."
+    except Exception as e:
+        print("Notice sending 2FA email:", e)
+        return False, str(e)
+
+
+def _trusted_device_fingerprint(user):
+    """Fingerprint bound to password and 2FA secret so secret resets revoke trusted devices."""
+    raw = f"{user.get('password_hash', '')}:{user.get('two_factor_secret', '')}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
+
+
+def make_trusted_device_token(user, days=30):
+    """Create signed cookie token trusting this browser for 2FA."""
+    exp = int(time.time()) + (days * 86400)
+    fp = _trusted_device_fingerprint(user)
+    payload = f"{user['id']}:{exp}:{fp}"
+    sig = hmac.new(app.secret_key.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{payload}:{sig}"
+
+
+def is_trusted_device(user, token):
+    """Validate signed 2FA trusted device cookie."""
+    if not token or not user:
+        return False
+    try:
+        parts = token.split(":")
+        if len(parts) != 4:
+            return False
+        uid_str, exp_str, fp, sig = parts
+        if int(uid_str) != int(user["id"]):
+            return False
+        if int(exp_str) < int(time.time()):
+            return False
+        expected_fp = _trusted_device_fingerprint(user)
+        if not hmac.compare_digest(fp, expected_fp):
+            return False
+        payload = f"{uid_str}:{exp_str}:{fp}"
+        expected_sig = hmac.new(app.secret_key.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+        return hmac.compare_digest(sig, expected_sig)
+    except Exception:
+        return False
+
+
+def clear_pending_2fa():
+    """Clear all temporary Step-2 verification session state."""
+    for key in [
+        "pending_2fa_user_id",
+        "pending_2fa_email",
+        "pending_2fa_name",
+        "pending_2fa_role",
+        "pending_2fa_method",
+        "pending_2fa_expires",
+        "pending_2fa_attempts",
+        "pending_email_otp_hash",
+        "pending_email_otp_expires",
+        "pending_email_otp_sent_at",
+        "pending_reset_password_hash",
+    ]:
+        session.pop(key, None)
+
+
+def complete_student_login(user):
+    """Finalize student login session cleanly."""
+    session.permanent = True
+    session["user_id"] = user["id"]
+    session["user_name"] = user["name"]
+    session["is_admin"] = user.get("role") == "admin"
+
+
+def start_2fa_challenge(user, pending_reset_hash=None):
+    """Initiate Step 2 verification session without logging the user in yet."""
+    clear_pending_2fa()
+    method = (user.get("two_factor_method") or "totp").lower()
+    if method not in ("totp", "email"):
+        method = "totp"
+
+    session["pending_2fa_user_id"] = user["id"]
+    session["pending_2fa_email"] = user["email"]
+    session["pending_2fa_name"] = user["name"]
+    session["pending_2fa_role"] = user.get("role") or "student"
+    session["pending_2fa_method"] = method
+    session["pending_2fa_expires"] = int(time.time()) + 600
+    session["pending_2fa_attempts"] = 0
+    if pending_reset_hash:
+        session["pending_reset_password_hash"] = pending_reset_hash
+
+    if method == "email":
+        code = str(secrets.randbelow(900000) + 100000)
+        session["pending_email_otp_hash"] = generate_password_hash(code)
+        session["pending_email_otp_expires"] = int(time.time()) + 600
+        session["pending_email_otp_sent_at"] = int(time.time())
+        ok, _ = send_2fa_email_code(user["email"], code, user["name"])
+        if ok:
+            flash(f"A 6-digit verification code was sent to {mask_email(user['email'])}.", "success")
+        else:
+            flash("Email delivery could not be reached. Please enter a Backup Recovery Code or check SMTP settings.", "error")
+
+    return redirect(url_for("verify_2fa"))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -1441,83 +1825,202 @@ def login():
     if request.method == "POST":
         identifier = request.form.get("email", "").strip()
         password = request.form.get("password", "")
-        login_mode = request.form.get("login_mode", "standard")
 
-        if not identifier:
-            flash("Please enter your student email, username, or coding handle.", "error")
+        if not identifier or not password:
+            flash("Please enter both your email/username and password.", "error")
             return render_template("login.html")
 
-        # Allow educator admin credentials to authenticate
+        # Allow educator admin credentials to authenticate cleanly
         admin_email = os.environ.get("ADMIN_EMAIL", "admin@skillstack.com").lower()
         admin_pass = os.environ.get("ADMIN_PASSWORD", "admin123")
-        if (identifier.lower() == admin_email or identifier.lower() == "admin") and (password == admin_pass or not password):
+        if (identifier.lower() == admin_email or identifier.lower() == "admin") and password == admin_pass:
             session.permanent = True
             session["admin_logged_in"] = True
             session["admin_name"] = "Educator Console Admin"
             flash("Logged in successfully as Educator Admin.", "success")
             return redirect(url_for("admin_dashboard"))
 
-        # Look up existing user
+        # Look up existing user via dialect-safe universal lookup
         users = find_user_by_identifier(identifier)
         if not users:
             restore_persistent_state_to_db()
             users = find_user_by_identifier(identifier)
 
-        # AUTO-ONBOARDING: If no user found anywhere, auto-create account on the spot!
         if not users:
-            clean_email = identifier if "@" in identifier else f"{identifier.lower().replace(' ', '_')}@skillstack.student"
-            display_name = identifier.split("@")[0].replace("_", " ").title() if "@" in identifier else identifier.title()
-            pw_hash = generate_password_hash(password) if password else ""
-            db_query(
-                "INSERT INTO users (name, email, password_hash, college, location, created_at) VALUES (%s, %s, %s, %s, %s, %s)",
-                (display_name, clean_email.lower(), pw_hash, "IMS Engineering College", "Delhi NCR, India", datetime.utcnow()),
-                commit=True
-            )
-            backup_user_state(clean_email.lower(), name=display_name)
-            users = find_user_by_identifier(clean_email)
-
-        matched_user = users[0]
-        stored_hash = matched_user.get("password_hash") or ""
-
-        # Instant access mode (passwordless fast login)
-        if login_mode == "instant" or not password:
-            session.permanent = True
-            session["user_id"] = matched_user["id"]
-            session["user_name"] = matched_user["name"]
-            session["is_admin"] = matched_user.get("role") == "admin"
-            flash(f"Welcome back, {matched_user['name']}! (Signed in via Instant Access ⚡)", "success")
-            return redirect(url_for("dashboard"))
-
-        # Password authentication
-        if not stored_hash or stored_hash in BOGUS_TEST_HASHES:
-            new_hash = generate_password_hash(password)
-            db_query("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, matched_user["id"]), commit=True)
-            matched_user["password_hash"] = new_hash
-            authenticated = True
-        else:
-            authenticated = verify_user_password(stored_hash, password)
-
-        if authenticated:
-            session.permanent = True
-            session["user_id"] = matched_user["id"]
-            session["user_name"] = matched_user["name"]
-            session["is_admin"] = matched_user.get("role") == "admin"
-            flash(f"Welcome back, {matched_user['name']}!", "success")
-            return redirect(url_for("dashboard"))
-        else:
-            flash(
-                f"Incorrect password for <strong>{matched_user['name']}</strong>. "
-                f"<a href='/quick-login?email={matched_user['email']}' style='color:#39d353; font-weight:700; text-decoration:underline; margin-left:6px;'>⚡ Click for 1-Click Instant Login</a> or "
-                f"<a href='/forgot-password' style='color:#ffa726; font-weight:700; text-decoration:underline; margin-left:4px;'>Reset Password</a>.",
-                "error"
-            )
+            flash("No account found with this email or username. Please sign up first.", "error")
             return render_template("login.html")
 
-    # GET request: prepare primary user data for quick access chip
-    primary_user = db_query("SELECT id, name, email FROM users WHERE email = %s", ("vishpratee2004@gmail.com",), fetchone=True)
-    if not primary_user:
-        primary_user = db_query("SELECT id, name, email FROM users ORDER BY id ASC LIMIT 1", fetchone=True)
-    return render_template("login.html", primary_user=primary_user)
+        matched_user = None
+        for u in users:
+            stored_hash = u.get("password_hash") or ""
+            # Adopt initial password ONLY when account was restored with no password set
+            if not stored_hash or stored_hash in BOGUS_TEST_HASHES:
+                if len(password.strip()) < 4:
+                    flash("Password must be at least 4 characters.", "error")
+                    return render_template("login.html")
+                new_hash = generate_password_hash(password)
+                db_query("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, u["id"]), commit=True)
+                u["password_hash"] = new_hash
+                matched_user = u
+                break
+            if verify_user_password(stored_hash, password):
+                matched_user = u
+                break
+
+        if not matched_user:
+            flash("Incorrect password. Please check your password or click 'Forgot password?' below to reset it.", "error")
+            return render_template("login.html")
+
+        # Upgrade legacy plaintext hash cleanly if applicable
+        if not (matched_user.get("password_hash") or "").startswith(("scrypt:", "pbkdf2:")):
+            try:
+                upgraded_hash = generate_password_hash(password)
+                db_query("UPDATE users SET password_hash = %s WHERE id = %s", (upgraded_hash, matched_user["id"]), commit=True)
+                matched_user["password_hash"] = upgraded_hash
+            except Exception:
+                pass
+
+        # Step 2: Enforce 2-Step Verification if enabled and browser is not trusted
+        if matched_user.get("two_factor_enabled") and not is_trusted_device(matched_user, request.cookies.get("skillstack_2fa_trust")):
+            return start_2fa_challenge(matched_user)
+
+        complete_student_login(matched_user)
+        flash(f"Welcome back, {matched_user['name']}!", "success")
+        return redirect(url_for("dashboard"))
+
+    return render_template("login.html")
+
+
+@app.route("/verify-2fa", methods=["GET", "POST"])
+def verify_2fa():
+    uid = session.get("pending_2fa_user_id")
+    expires = session.get("pending_2fa_expires", 0)
+    if not uid or int(time.time()) > int(expires):
+        clear_pending_2fa()
+        flash("Your verification session expired. Please log in again.", "error")
+        return redirect(url_for("login"))
+
+    user = db_query("SELECT * FROM users WHERE id = %s", (uid,), fetchone=True)
+    if not user:
+        clear_pending_2fa()
+        flash("Account not found. Please log in again.", "error")
+        return redirect(url_for("login"))
+
+    method = session.get("pending_2fa_method") or user.get("two_factor_method") or "totp"
+    attempts = int(session.get("pending_2fa_attempts", 0))
+    pending_reset = bool(session.get("pending_reset_password_hash"))
+
+    if request.method == "POST":
+        action = request.form.get("action", "verify")
+        if action == "resend" and method == "email":
+            last_sent = int(session.get("pending_email_otp_sent_at", 0))
+            now_ts = int(time.time())
+            if now_ts - last_sent < 30:
+                wait_sec = 30 - (now_ts - last_sent)
+                flash(f"Please wait {wait_sec}s before requesting another code.", "error")
+            else:
+                code = str(secrets.randbelow(900000) + 100000)
+                session["pending_email_otp_hash"] = generate_password_hash(code)
+                session["pending_email_otp_expires"] = now_ts + 600
+                session["pending_email_otp_sent_at"] = now_ts
+                ok, _ = send_2fa_email_code(user["email"], code, user["name"])
+                flash(
+                    f"New verification code sent to {mask_email(user['email'])}." if ok else "Could not send email code. Try a Backup Recovery Code.",
+                    "success" if ok else "error"
+                )
+            return render_template(
+                "verify_2fa.html",
+                masked_email=mask_email(user["email"]),
+                method=method,
+                attempts_left=max(0, 5 - attempts),
+                pending_reset=pending_reset,
+                smtp_configured=is_smtp_configured(),
+            )
+
+        if attempts >= 5:
+            clear_pending_2fa()
+            flash("Too many failed verification attempts. Please log in again.", "error")
+            return redirect(url_for("login"))
+
+        raw_code = request.form.get("code", "").strip()
+        use_backup = request.form.get("use_backup") == "1"
+        verified = False
+        used_backup = False
+        remaining_backups = None
+
+        if not raw_code:
+            flash("Please enter your 6-digit verification code or backup code.", "error")
+            return render_template(
+                "verify_2fa.html",
+                masked_email=mask_email(user["email"]),
+                method=method,
+                attempts_left=max(0, 5 - attempts),
+                pending_reset=pending_reset,
+                smtp_configured=is_smtp_configured(),
+            )
+
+        if use_backup or (len(re.sub(r"[^A-Za-z0-9]", "", raw_code)) > 6):
+            verified, remaining_backups = verify_and_consume_backup_code(user, raw_code)
+            used_backup = verified
+        elif method == "email":
+            otp_hash = session.get("pending_email_otp_hash") or ""
+            otp_exp = int(session.get("pending_email_otp_expires", 0))
+            clean_digits = re.sub(r"[^0-9]", "", raw_code)
+            if otp_hash and int(time.time()) <= otp_exp and len(clean_digits) == 6:
+                verified = check_password_hash(otp_hash, clean_digits)
+        else:
+            verified = verify_totp_code(user.get("two_factor_secret") or "", raw_code)
+
+        if verified:
+            reset_hash = session.get("pending_reset_password_hash")
+            if reset_hash:
+                db_query("UPDATE users SET password_hash = %s WHERE id = %s", (reset_hash, user["id"]), commit=True)
+                user["password_hash"] = reset_hash
+
+            clear_pending_2fa()
+            complete_student_login(user)
+
+            if reset_hash:
+                flash(f"Password updated and 2-Step Verification passed! Welcome back, {user['name']}.", "success")
+            elif used_backup:
+                flash(f"Signed in with Backup Recovery Code ({remaining_backups} codes remaining). Consider regenerating codes in Profile.", "success")
+            else:
+                flash(f"Welcome back, {user['name']}! Verified via 2-Step Verification.", "success")
+
+            resp = make_response(redirect(url_for("dashboard")))
+            if request.form.get("trust_device"):
+                resp.set_cookie(
+                    "skillstack_2fa_trust",
+                    make_trusted_device_token(user, days=30),
+                    max_age=30 * 86400,
+                    httponly=True,
+                    samesite="Lax",
+                )
+            return resp
+        else:
+            attempts += 1
+            session["pending_2fa_attempts"] = attempts
+            if attempts >= 5:
+                clear_pending_2fa()
+                flash("Too many incorrect verification codes. Please log in again.", "error")
+                return redirect(url_for("login"))
+            flash(f"Invalid verification code. {5 - attempts} attempt(s) remaining.", "error")
+
+    return render_template(
+        "verify_2fa.html",
+        masked_email=mask_email(user["email"]),
+        method=method,
+        attempts_left=max(0, 5 - attempts),
+        pending_reset=pending_reset,
+        smtp_configured=is_smtp_configured(),
+    )
+
+
+@app.route("/verify-2fa/cancel")
+def cancel_2fa():
+    clear_pending_2fa()
+    flash("Verification cancelled.", "success")
+    return redirect(url_for("login"))
 
 
 @app.route("/forgot-password", methods=["GET", "POST"])
@@ -1541,37 +2044,33 @@ def forgot_password():
             return render_template("forgot_password.html")
 
         users = find_user_by_identifier(raw_email)
-        new_hash = generate_password_hash(new_password)
-
         if not users:
-            default_name = email.split("@")[0].capitalize() if "@" in email else email.capitalize()
-            db_query(
-                "INSERT INTO users (name, email, password_hash, created_at) VALUES (%s, %s, %s, %s)",
-                (default_name, email, new_hash, datetime.utcnow()),
-                commit=True
-            )
+            restore_persistent_state_to_db()
             users = find_user_by_identifier(raw_email)
 
-        if users:
-            # Update password for ALL matching accounts to guarantee update is persisted
-            for u in users:
-                db_query(
-                    "UPDATE users SET password_hash = %s WHERE id = %s",
-                    (new_hash, u["id"]),
-                    commit=True
-                )
-                backup_user_state(u["email"], password_hash=new_hash)
-            dump_full_database_to_backup()
+        if not users:
+            flash("No account found with that email or username. Please sign up first.", "error")
+            return render_template("forgot_password.html")
 
-            primary_user = users[0]
-            session["user_id"] = primary_user["id"]
-            session["user_name"] = primary_user["name"]
-            session["is_admin"] = "admin" in email or primary_user.get("role") == "admin"
-            flash(f"Password updated successfully! Welcome back, {primary_user['name']}.", "success")
-            return redirect(url_for("dashboard"))
+        new_hash = generate_password_hash(new_password)
+        primary_user = users[0]
 
-        flash("An error occurred during password reset.", "error")
-        return render_template("forgot_password.html")
+        # Enforce 2-Step Verification before resetting password if 2SV is active
+        if primary_user.get("two_factor_enabled"):
+            flash("Complete 2-Step Verification to finish resetting your password.", "success")
+            return start_2fa_challenge(primary_user, pending_reset_hash=new_hash)
+
+        for u in users:
+            db_query(
+                "UPDATE users SET password_hash = %s WHERE id = %s",
+                (new_hash, u["id"]),
+                commit=True
+            )
+        dump_full_database_to_backup()
+
+        complete_student_login(primary_user)
+        flash(f"Password updated successfully! Welcome back, {primary_user['name']}.", "success")
+        return redirect(url_for("dashboard"))
 
     return render_template("forgot_password.html")
 
@@ -2056,7 +2555,7 @@ def dashboard():
     nudges = get_user_nudges(user_id)
 
     # Fetch real user profile fields from DB
-    db_user = db_query("SELECT headline, college, location FROM users WHERE id = %s", (user_id,), fetchone=True) or {}
+    db_user = db_query("SELECT headline, college, location, two_factor_enabled FROM users WHERE id = %s", (user_id,), fetchone=True) or {}
     user_headline = db_user.get("headline") or ""
     user_college = db_user.get("college") or ""
     user_location = db_user.get("location") or ""
@@ -2180,6 +2679,7 @@ def dashboard():
         daily_challenge=daily_challenge,
         upcoming_contests=upcoming_contests,
         active_page="dashboard",
+        two_factor_enabled=bool(db_user.get("two_factor_enabled")),
         is_admin=session.get("is_admin", True)
     )
 
@@ -3218,6 +3718,7 @@ def user_profile():
     if not db_user:
         db_user = {
             "name": session.get("user_name", "Prateek Vishwakarma"),
+            "email": "",
             "username": "prateekv",
             "headline": "Competitive Programmer & Full Stack Developer",
             "location": "Delhi NCR, India",
@@ -3239,7 +3740,210 @@ def user_profile():
         "github": db_user.get("github_url") or "https://github.com",
         "linkedin": db_user.get("linkedin_url") or "https://linkedin.com"
     }
-    return render_template("profile.html", user_name=session.get("user_name"), profile=profile_data, active_page="profile")
+
+    two_factor_enabled = bool(db_user.get("two_factor_enabled"))
+    two_factor_method = (db_user.get("two_factor_method") or "totp").lower()
+    user_email = db_user.get("email") or ""
+
+    setup_secret = session.get("setup_totp_secret")
+    if not two_factor_enabled and not setup_secret:
+        setup_secret = generate_totp_secret()
+        session["setup_totp_secret"] = setup_secret
+
+    setup_secret = setup_secret or ""
+    setup_secret_formatted = " ".join(setup_secret[i:i + 4] for i in range(0, len(setup_secret), 4))
+    otpauth_uri = build_otpauth_uri(user_email or profile_data["username"], setup_secret) if setup_secret else ""
+
+    try:
+        backup_hashes = json.loads(db_user.get("backup_codes_hash") or "[]")
+        backup_codes_remaining = len(backup_hashes) if isinstance(backup_hashes, list) else 0
+    except Exception:
+        backup_codes_remaining = 0
+
+    just_generated_backup_codes = session.pop("just_generated_backup_codes", None)
+    has_password = bool(db_user.get("password_hash"))
+
+    return render_template(
+        "profile.html",
+        user_name=session.get("user_name"),
+        profile=profile_data,
+        active_page="profile",
+        two_factor_enabled=two_factor_enabled,
+        two_factor_method=two_factor_method,
+        user_email=user_email,
+        setup_secret=setup_secret,
+        setup_secret_formatted=setup_secret_formatted,
+        otpauth_uri=otpauth_uri,
+        smtp_configured=is_smtp_configured(),
+        backup_codes_remaining=backup_codes_remaining,
+        just_generated_backup_codes=just_generated_backup_codes,
+        has_password=has_password,
+    )
+
+
+@app.route("/security/2fa/send-setup-otp", methods=["POST"])
+@login_required
+def send_setup_email_otp():
+    """Send 6-digit setup verification code before enabling Email 2SV."""
+    user_id = session.get("user_id")
+    user = db_query("SELECT * FROM users WHERE id = %s", (user_id,), fetchone=True)
+    if not user or not user.get("email"):
+        flash("Account email not found.", "error")
+        return redirect(url_for("user_profile") + "#security-2fa")
+
+    if not is_smtp_configured():
+        flash("SMTP email configuration is missing on the server.", "error")
+        return redirect(url_for("user_profile") + "#security-2fa")
+
+    code = str(secrets.randbelow(900000) + 100000)
+    session["setup_email_otp_hash"] = generate_password_hash(code)
+    session["setup_email_otp_expires"] = int(time.time()) + 600
+    ok, err_msg = send_2fa_email_code(user["email"], code, user.get("name", "Developer"))
+    if ok:
+        flash(f"Setup verification code sent to {user['email']}.", "success")
+    else:
+        flash(f"Failed to send email: {err_msg}", "error")
+    return redirect(url_for("user_profile") + "#security-2fa")
+
+
+@app.route("/security/2fa/enable", methods=["POST"])
+@login_required
+def enable_2fa():
+    """Verify setup code and activate 2-Step Verification (TOTP or Email OTP)."""
+    user_id = session.get("user_id")
+    user = db_query("SELECT * FROM users WHERE id = %s", (user_id,), fetchone=True)
+    if not user:
+        flash("User account not found.", "error")
+        return redirect(url_for("user_profile") + "#security-2fa")
+
+    method = request.form.get("method", "totp").strip().lower()
+    raw_code = re.sub(r"[^0-9]", "", request.form.get("code", ""))
+
+    if len(raw_code) != 6:
+        flash("Please enter a valid 6-digit verification code.", "error")
+        return redirect(url_for("user_profile") + "#security-2fa")
+
+    if method == "email":
+        if not is_smtp_configured():
+            flash("SMTP must be configured to enable Email 2-Step Verification.", "error")
+            return redirect(url_for("user_profile") + "#security-2fa")
+        otp_hash = session.get("setup_email_otp_hash") or ""
+        otp_exp = int(session.get("setup_email_otp_expires", 0))
+        if not otp_hash or int(time.time()) > otp_exp or not check_password_hash(otp_hash, raw_code):
+            flash("Invalid or expired email verification code. Please send a new code and try again.", "error")
+            return redirect(url_for("user_profile") + "#security-2fa")
+        secret_to_save = ""
+    else:
+        method = "totp"
+        setup_secret = session.get("setup_totp_secret") or ""
+        if not setup_secret or not verify_totp_code(setup_secret, raw_code):
+            flash("Invalid 6-digit authenticator code. Make sure your device clock is accurate and try again.", "error")
+            return redirect(url_for("user_profile") + "#security-2fa")
+        secret_to_save = setup_secret
+
+    plain_codes, hashed_codes_json = generate_backup_codes(6)
+    db_query(
+        "UPDATE users SET two_factor_enabled = 1, two_factor_method = %s, two_factor_secret = %s, backup_codes_hash = %s WHERE id = %s",
+        (method, secret_to_save, hashed_codes_json, user_id),
+        commit=True
+    )
+    session.pop("setup_totp_secret", None)
+    session.pop("setup_email_otp_hash", None)
+    session.pop("setup_email_otp_expires", None)
+    session["just_generated_backup_codes"] = plain_codes
+    flash("2-Step Verification is now ENABLED! Save your backup recovery codes below.", "success")
+    return redirect(url_for("user_profile") + "#security-2fa")
+
+
+@app.route("/security/2fa/disable", methods=["POST"])
+@login_required
+def disable_2fa():
+    """Verify current password and turn off 2-Step Verification."""
+    user_id = session.get("user_id")
+    user = db_query("SELECT * FROM users WHERE id = %s", (user_id,), fetchone=True)
+    if not user:
+        flash("User account not found.", "error")
+        return redirect(url_for("user_profile") + "#security-2fa")
+
+    current_pw = request.form.get("current_password", "")
+    stored_hash = user.get("password_hash") or ""
+    if stored_hash and not verify_user_password(stored_hash, current_pw):
+        flash("Incorrect password. Enter your current password to disable 2-Step Verification.", "error")
+        return redirect(url_for("user_profile") + "#security-2fa")
+
+    db_query(
+        "UPDATE users SET two_factor_enabled = 0, two_factor_secret = '', backup_codes_hash = '' WHERE id = %s",
+        (user_id,),
+        commit=True
+    )
+    session.pop("setup_totp_secret", None)
+    session.pop("just_generated_backup_codes", None)
+    flash("2-Step Verification has been disabled.", "success")
+    resp = make_response(redirect(url_for("user_profile") + "#security-2fa"))
+    resp.delete_cookie("skillstack_2fa_trust")
+    return resp
+
+
+@app.route("/security/2fa/regenerate-codes", methods=["POST"])
+@login_required
+def regenerate_backup_codes():
+    """Verify password and replace one-time backup recovery codes."""
+    user_id = session.get("user_id")
+    user = db_query("SELECT * FROM users WHERE id = %s", (user_id,), fetchone=True)
+    if not user or not user.get("two_factor_enabled"):
+        flash("Enable 2-Step Verification first.", "error")
+        return redirect(url_for("user_profile") + "#security-2fa")
+
+    current_pw = request.form.get("current_password", "")
+    stored_hash = user.get("password_hash") or ""
+    if stored_hash and not verify_user_password(stored_hash, current_pw):
+        flash("Incorrect password. Could not regenerate backup codes.", "error")
+        return redirect(url_for("user_profile") + "#security-2fa")
+
+    plain_codes, hashed_codes_json = generate_backup_codes(6)
+    db_query(
+        "UPDATE users SET backup_codes_hash = %s WHERE id = %s",
+        (hashed_codes_json, user_id),
+        commit=True
+    )
+    session["just_generated_backup_codes"] = plain_codes
+    flash("New backup recovery codes generated. Previous codes are now invalid.", "success")
+    return redirect(url_for("user_profile") + "#security-2fa")
+
+
+@app.route("/security/change-password", methods=["POST"])
+@login_required
+def change_password():
+    """Update logged-in student's account password securely."""
+    user_id = session.get("user_id")
+    user = db_query("SELECT * FROM users WHERE id = %s", (user_id,), fetchone=True)
+    if not user:
+        flash("User account not found.", "error")
+        return redirect(url_for("user_profile") + "#security-password")
+
+    current_pw = request.form.get("current_password", "")
+    new_pw = request.form.get("new_password", "").strip()
+    confirm_pw = request.form.get("confirm_password", "").strip()
+
+    stored_hash = user.get("password_hash") or ""
+    if stored_hash and not verify_user_password(stored_hash, current_pw):
+        flash("Current password is incorrect.", "error")
+        return redirect(url_for("user_profile") + "#security-password")
+
+    if len(new_pw) < 6:
+        flash("New password must be at least 6 characters long.", "error")
+        return redirect(url_for("user_profile") + "#security-password")
+
+    if new_pw != confirm_pw:
+        flash("New passwords do not match.", "error")
+        return redirect(url_for("user_profile") + "#security-password")
+
+    new_hash = generate_password_hash(new_pw)
+    db_query("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, user_id), commit=True)
+    flash("Account password updated successfully.", "success")
+    resp = make_response(redirect(url_for("user_profile") + "#security-password"))
+    resp.delete_cookie("skillstack_2fa_trust")
+    return resp
 
 
 @app.route("/export-resume")
