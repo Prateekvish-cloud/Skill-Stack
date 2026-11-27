@@ -1661,7 +1661,7 @@ def google_login():
     """Initiate official Google OAuth 2.0 Sign-In / Gmail Verification."""
     if not is_google_oauth_configured():
         flash(
-            "Google Sign-In requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in server environment settings.",
+            "Google Sign-In is not enabled yet. Please sign in using your email and password.",
             "error"
         )
         return redirect(url_for("user_profile") if session.get("user_id") else url_for("login"))
@@ -1796,6 +1796,15 @@ def is_email_service_configured():
     return bool(smtp_user and smtp_pass)
 
 
+@app.context_processor
+def inject_auth_flags():
+    """Expose auth configuration flags cleanly to all templates."""
+    return {
+        "google_oauth_enabled": is_google_oauth_configured(),
+        "email_service_configured": is_email_service_configured(),
+    }
+
+
 def send_2fa_verification_email(to_email, code, verify_url=None, user_name="Developer"):
     """Send 2-Step Email Verification mail with a 1-click Verify link and 6-digit code."""
     if not is_email_service_configured() or not to_email:
@@ -1870,6 +1879,8 @@ def send_2fa_verification_email(to_email, code, verify_url=None, user_name="Deve
     smtp_user = os.getenv("SMTP_USER", "").strip()
     smtp_pass = os.getenv("SMTP_PASS", "").strip()
     host = os.getenv("SMTP_HOST", "smtp.gmail.com" if smtp_user else "").strip()
+    if "gmail" in host.lower():
+        smtp_pass = smtp_pass.replace(" ", "")
     port = int(os.getenv("SMTP_PORT", "587") or 587)
     from_addr = os.getenv("SMTP_FROM", smtp_user).strip()
 
