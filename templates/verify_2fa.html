@@ -91,6 +91,12 @@
       </button>
     </form>
 
+    {% if google_oauth_enabled %}
+    <a href="{{ url_for('google_login') }}" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-top:10px; padding:9px; border-radius:10px; background:#ffffff; color:#1f1f1f; font-size:12px; font-weight:700; text-decoration:none; box-sizing:border-box;">
+      <span>Verify with Google Account ↗</span>
+    </a>
+    {% endif %}
+
     <div class="auth-footer-links" style="margin-top:18px; padding-top:14px; border-top:1px solid rgba(216,207,188,0.12); font-size:12px;">
       <span style="color:var(--muted);">Code expires in 10 minutes</span>
       <a href="{{ url_for('cancel_2fa') }}" style="color:#ffa726; font-weight:600;">← Back to Login</a>

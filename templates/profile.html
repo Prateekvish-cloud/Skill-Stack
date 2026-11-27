@@ -122,20 +122,24 @@
       </form>
     </div>
 
-    <!-- Security & 2-Step Email Verification Panel -->
+    <!-- Security & Google / Gmail 2-Step Verification Panel -->
     <div class="panel" id="security-2fa" style="margin-top:24px;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
         <div>
-          <h2 style="margin:0;">📧 2-Step Email Verification</h2>
-          <p style="font-size:12.5px; color:var(--muted); margin:4px 0 0 0;">Whenever you sign in with your email &amp; password, SkillStack sends a verification mail to <strong style="color:var(--ink);">{{ user_email }}</strong> so you can verify it's you.</p>
+          <h2 style="margin:0;">🛡️ Google &amp; Gmail Verification</h2>
+          <p style="font-size:12.5px; color:var(--muted); margin:4px 0 0 0;">Verify sign-ins with your Google account or 2-step Gmail verification to <strong style="color:var(--ink);">{{ user_email }}</strong>.</p>
         </div>
-        {% if two_factor_enabled and email_service_configured %}
+        {% if google_connected %}
         <span style="font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:999px; background:rgba(57,211,83,0.16); color:#39d353; border:1px solid rgba(57,211,83,0.35);">
-          ✓ ACTIVE ON LOGIN
+          ✓ GOOGLE VERIFIED
         </span>
-        {% elif two_factor_enabled and not email_service_configured %}
+        {% elif two_factor_enabled and email_service_configured %}
+        <span style="font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:999px; background:rgba(57,211,83,0.16); color:#39d353; border:1px solid rgba(57,211,83,0.35);">
+          ✓ GMAIL 2-STEP ACTIVE
+        </span>
+        {% elif two_factor_enabled %}
         <span style="font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:999px; background:rgba(255,167,38,0.14); color:#ffa726; border:1px solid rgba(255,167,38,0.35);">
-          ⚠️ WAITING FOR EMAIL SERVER CONFIG
+          GMAIL SMTP NOT SET ON SERVER
         </span>
         {% else %}
         <span style="font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:999px; background:rgba(216,207,188,0.12); color:var(--muted); border:1px solid rgba(216,207,188,0.25);">
@@ -144,58 +148,66 @@
         {% endif %}
       </div>
 
-      {% if not email_service_configured %}
-      <div style="background:rgba(255,167,38,0.08); border:1px solid rgba(255,167,38,0.3); border-radius:12px; padding:16px; margin-bottom:14px;">
-        <div style="font-weight:700; color:#ffa726; font-size:13.5px; margin-bottom:6px;">Email Sender Not Configured Yet</div>
-        <p style="font-size:12.5px; color:var(--muted); margin:0 0 10px 0;">
-          To deliver real verification emails to <strong>{{ user_email }}</strong> during login, add either <strong>Gmail SMTP</strong> or <strong>Resend API</strong> environment variables in your <code>.env</code> file (local) or Render Environment Settings (live):
-        </p>
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
-          <div style="background:rgba(20,21,16,0.85); border:1px solid rgba(216,207,188,0.18); border-radius:10px; padding:12px; font-size:12px;">
-            <div style="font-weight:700; color:var(--ink); margin-bottom:6px;">Option A: Gmail App Password (SMTP)</div>
-            <pre style="margin:0; font-size:11px; color:#D8CFBC; white-space:pre-wrap; line-height:1.5;">SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_16_char_app_password</pre>
-          </div>
-          <div style="background:rgba(20,21,16,0.85); border:1px solid rgba(216,207,188,0.18); border-radius:10px; padding:12px; font-size:12px;">
-            <div style="font-weight:700; color:var(--ink); margin-bottom:6px;">Option B: Resend HTTP API (Cloud Recommended)</div>
-            <pre style="margin:0; font-size:11px; color:#D8CFBC; white-space:pre-wrap; line-height:1.5;">RESEND_API_KEY=re_xxxxxxxxxxxxx
-SMTP_FROM=onboarding@resend.dev</pre>
-          </div>
-        </div>
-      </div>
-      {% else %}
-      <div style="background:rgba(20,21,16,0.55); border:1px solid rgba(57,211,83,0.25); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:14px;">
+      <div style="background:rgba(20,21,16,0.55); border:1px solid rgba(216,207,188,0.2); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:14px;">
+        <!-- Google OAuth Status Row -->
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-          <div style="font-size:13px; color:var(--ink);">
-            Verification mails are delivered to <strong>{{ user_email }}</strong> with a <strong>Verify It's Me</strong> link &amp; 6-digit code.
+          <div>
+            <div style="font-size:13.5px; font-weight:700; color:var(--ink);">Google Sign-In Verification</div>
+            <div style="font-size:12px; color:var(--muted);">
+              {% if google_connected %}
+                Your SkillStack profile is verified and linked with your Google account ({{ user_email }}).
+              {% else %}
+                Verify your Gmail ownership directly via Google Sign-In.
+              {% endif %}
+            </div>
           </div>
-          <form action="{{ url_for('send_test_2fa_email') }}" method="POST" style="margin:0;">
-            <button type="submit" class="btn-secondary" style="padding:7px 14px; font-size:12px;">✉️ Send Test Verification Mail</button>
-          </form>
+          {% if not google_connected %}
+          <a href="{{ url_for('google_login') }}" style="display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:8px; background:#ffffff; color:#1f1f1f; font-weight:700; font-size:12px; text-decoration:none;">
+            <span>Connect Google Account</span>
+          </a>
+          {% endif %}
         </div>
 
+        <!-- Gmail 2-Step Verification Row -->
+        <div style="border-top:1px solid rgba(216,207,188,0.12); padding-top:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <div style="font-size:13.5px; font-weight:700; color:var(--ink);">2-Step Gmail Mail Verification</div>
+            <div style="font-size:12px; color:var(--muted);">
+              {% if email_service_configured %}
+                Sends a verification email with a 6-digit code &amp; confirmation link to {{ user_email }} on password login.
+              {% else %}
+                Gmail verification emails activate automatically once your Gmail App Password is added to server settings.
+              {% endif %}
+            </div>
+          </div>
+          {% if email_service_configured %}
+          <form action="{{ url_for('send_test_2fa_email') }}" method="POST" style="margin:0;">
+            <button type="submit" class="btn-secondary" style="padding:7px 14px; font-size:12px;">✉️ Send Test Gmail</button>
+          </form>
+          {% endif %}
+        </div>
+
+        {% if email_service_configured %}
         <div style="border-top:1px solid rgba(216,207,188,0.12); padding-top:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           {% if two_factor_enabled %}
-          <span style="font-size:12px; color:var(--muted);">Email 2-Step Verification is required on every new browser login.</span>
+          <span style="font-size:12px; color:var(--muted);">Gmail 2-Step Verification is active for password logins.</span>
           <form action="{{ url_for('toggle_email_2fa') }}" method="POST" style="display:flex; gap:8px; align-items:center; margin:0;">
             <input type="hidden" name="enable" value="0" />
             {% if has_password %}
             <input type="password" name="current_password" required placeholder="Confirm password" style="padding:7px 10px; border-radius:8px; border:1px solid var(--border); background:rgba(15,20,18,0.85); color:var(--ink); font-size:12px;" />
             {% endif %}
-            <button type="submit" style="background:rgba(255,82,82,0.16); border:1px solid rgba(255,82,82,0.4); color:#ff7979; padding:7px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">Turn Off Email 2SV</button>
+            <button type="submit" style="background:rgba(255,82,82,0.16); border:1px solid rgba(255,82,82,0.4); color:#ff7979; padding:7px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">Turn Off Gmail 2SV</button>
           </form>
           {% else %}
-          <span style="font-size:12px; color:var(--muted);">Turn on Email 2-Step Verification to require email confirmation when logging in.</span>
+          <span style="font-size:12px; color:var(--muted);">Turn on 2-Step Gmail Verification to require confirmation mail on login.</span>
           <form action="{{ url_for('toggle_email_2fa') }}" method="POST" style="margin:0;">
             <input type="hidden" name="enable" value="1" />
-            <button type="submit" class="btn-primary" style="padding:7px 14px; font-size:12px;">Enable Email 2SV ✓</button>
+            <button type="submit" class="btn-primary" style="padding:7px 14px; font-size:12px;">Enable Gmail 2SV ✓</button>
           </form>
           {% endif %}
         </div>
+        {% endif %}
       </div>
-      {% endif %}
     </div>
 
     <!-- Account Password Panel -->

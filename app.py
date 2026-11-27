@@ -9,11 +9,13 @@ import smtplib
 import sqlite3
 import threading
 import urllib.request
+import urllib.parse
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 import mysql.connector
 from mysql.connector import Error
 from dotenv import load_dotenv
@@ -30,6 +32,7 @@ load_dotenv()
 CONTESTS_CACHE = {"timestamp": 0, "data": []}
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
 @app.route("/ping")
@@ -248,6 +251,7 @@ def init_db_tables():
                     two_factor_method TEXT DEFAULT 'email',
                     two_factor_secret TEXT,
                     backup_codes_hash TEXT,
+                    google_sub TEXT,
                     created_at TIMESTAMP
                 );
             """)
@@ -388,6 +392,7 @@ def init_db_tables():
                     two_factor_method VARCHAR(32) DEFAULT 'email',
                     two_factor_secret TEXT,
                     backup_codes_hash TEXT,
+                    google_sub TEXT,
                     created_at TIMESTAMP
                 );
                 """,
@@ -530,6 +535,7 @@ def init_db_tables():
                     two_factor_method VARCHAR(32) DEFAULT 'email',
                     two_factor_secret TEXT,
                     backup_codes_hash TEXT,
+                    google_sub VARCHAR(255),
                     created_at DATETIME
                 );
             """)
@@ -668,7 +674,8 @@ def init_db_tables():
             ("two_factor_enabled", "INTEGER DEFAULT 1"),
             ("two_factor_method", "VARCHAR(32) DEFAULT 'email'"),
             ("two_factor_secret", "TEXT"),
-            ("backup_codes_hash", "TEXT")
+            ("backup_codes_hash", "TEXT"),
+            ("google_sub", "TEXT")
         ]
         for col, col_type in user_cols:
             try:
@@ -1633,6 +1640,153 @@ def mask_email(email):
     return f"{masked_local}@{domain}"
 
 
+def is_google_oauth_configured():
+    """Return True if Google OAuth 2.0 client credentials are configured."""
+    return bool(
+        os.getenv("GOOGLE_CLIENT_ID", "").strip()
+        and os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+    )
+
+
+def get_google_redirect_uri():
+    """Return canonical OAuth callback URL matching external HTTPS scheme behind Render proxy."""
+    explicit = os.getenv("GOOGLE_REDIRECT_URI", "").strip()
+    if explicit:
+        return explicit
+    return url_for("google_callback", _external=True)
+
+
+@app.route("/auth/google")
+def google_login():
+    """Initiate official Google OAuth 2.0 Sign-In / Gmail Verification."""
+    if not is_google_oauth_configured():
+        flash(
+            "Google Sign-In requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in server environment settings.",
+            "error"
+        )
+        return redirect(url_for("user_profile") if session.get("user_id") else url_for("login"))
+
+    state = secrets.token_urlsafe(24)
+    session["google_oauth_state"] = state
+    session["google_oauth_origin"] = "profile" if session.get("user_id") else ("verify_2fa" if session.get("pending_email_2fa_uid") else "login")
+
+    params = urllib.parse.urlencode({
+        "client_id": os.getenv("GOOGLE_CLIENT_ID", "").strip(),
+        "redirect_uri": get_google_redirect_uri(),
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "prompt": "select_account",
+        "access_type": "online",
+    })
+    return redirect(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
+
+
+@app.route("/auth/google/callback")
+def google_callback():
+    """Verify Google OAuth 2.0 response, confirm verified Gmail, and sign user in."""
+    if request.args.get("error"):
+        session.pop("google_oauth_state", None)
+        flash("Google authentication was cancelled or denied.", "error")
+        return redirect(url_for("login"))
+
+    state = request.args.get("state", "")
+    expected_state = session.pop("google_oauth_state", None)
+    origin = session.pop("google_oauth_origin", "login")
+    if not state or not expected_state or not hmac.compare_digest(state, expected_state):
+        flash("Invalid Google security state. Please try again.", "error")
+        return redirect(url_for("login"))
+
+    code = request.args.get("code", "").strip()
+    if not code:
+        flash("Missing Google authorization code.", "error")
+        return redirect(url_for("login"))
+
+    try:
+        token_payload = urllib.parse.urlencode({
+            "code": code,
+            "client_id": os.getenv("GOOGLE_CLIENT_ID", "").strip(),
+            "client_secret": os.getenv("GOOGLE_CLIENT_SECRET", "").strip(),
+            "redirect_uri": get_google_redirect_uri(),
+            "grant_type": "authorization_code",
+        }).encode("utf-8")
+        token_req = urllib.request.Request(
+            "https://oauth2.googleapis.com/token",
+            data=token_payload,
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+        with urllib.request.urlopen(token_req, timeout=10) as resp:
+            token_data = json.loads(resp.read().decode("utf-8"))
+
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise ValueError("Google did not return an access token.")
+
+        userinfo_req = urllib.request.Request(
+            "https://openidconnect.googleapis.com/v1/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        with urllib.request.urlopen(userinfo_req, timeout=10) as uresp:
+            g_user = json.loads(uresp.read().decode("utf-8"))
+    except Exception as oauth_err:
+        print("Notice during Google OAuth callback:", oauth_err)
+        flash("Could not verify your Google account. Please try again.", "error")
+        return redirect(url_for("login"))
+
+    g_email = (g_user.get("email") or "").strip().lower()
+    g_verified = bool(g_user.get("email_verified"))
+    g_name = (g_user.get("name") or (g_email.split("@")[0] if g_email else "Student Developer")).strip()
+    g_sub = str(g_user.get("sub") or "").strip()
+
+    if not g_email or not g_verified:
+        flash("Google account email must be verified with Google before signing in.", "error")
+        return redirect(url_for("login"))
+
+    # If user initiated linking from an already logged-in session
+    if origin == "profile" and session.get("user_id"):
+        curr_uid = session.get("user_id")
+        curr_user = db_query("SELECT * FROM users WHERE id = %s", (curr_uid,), fetchone=True)
+        if curr_user and (curr_user.get("email") or "").strip().lower() == g_email:
+            db_query("UPDATE users SET google_sub = %s WHERE id = %s", (g_sub, curr_uid), commit=True)
+            flash(f"Google account ({g_email}) verified and connected!", "success")
+            return redirect(url_for("user_profile") + "#security-2fa")
+        elif curr_user:
+            flash(f"Signed in Google email ({g_email}) does not match your account email ({curr_user.get('email')}).", "error")
+            return redirect(url_for("user_profile") + "#security-2fa")
+
+    # Find or create account matching verified Google email
+    users = db_query("SELECT * FROM users WHERE LOWER(TRIM(email)) = %s", (g_email,), fetchall=True) or []
+    if not users:
+        restore_persistent_state_to_db()
+        users = db_query("SELECT * FROM users WHERE LOWER(TRIM(email)) = %s", (g_email,), fetchall=True) or []
+
+    if not users:
+        db_query(
+            "INSERT INTO users (name, email, password_hash, college, location, two_factor_enabled, two_factor_method, google_sub, created_at) VALUES (%s, %s, '', 'IMS Engineering College', 'Delhi NCR, India', 1, 'email', %s, %s)",
+            (g_name, g_email, g_sub, datetime.utcnow()),
+            commit=True
+        )
+        backup_user_state(g_email, name=g_name)
+        users = db_query("SELECT * FROM users WHERE LOWER(TRIM(email)) = %s", (g_email,), fetchall=True) or []
+    else:
+        db_query("UPDATE users SET google_sub = %s WHERE id = %s", (g_sub, users[0]["id"]), commit=True)
+
+    user = users[0]
+
+    # Complete pending Step 2 password reset or login if came from /verify-2fa
+    verif_id = session.get("pending_email_2fa_id")
+    reset_hash = session.get("pending_reset_password_hash")
+    if verif_id:
+        db_query("UPDATE email_login_verifications SET approved = 1, used = 1 WHERE id = %s", (verif_id,), commit=True)
+    if reset_hash and session.get("pending_email_2fa_uid") == user["id"]:
+        db_query("UPDATE users SET password_hash = %s WHERE id = %s", (reset_hash, user["id"]), commit=True)
+
+    clear_pending_2fa()
+    complete_student_login(user)
+    flash(f"Verified & signed in with Google ({g_email}) ✓", "success")
+    return redirect(url_for("dashboard"))
+
+
 def is_email_service_configured():
     """Return True if outbound email delivery (Resend API or SMTP) is configured."""
     if os.getenv("RESEND_API_KEY", "").strip():
@@ -2048,6 +2202,7 @@ def verify_2fa():
         attempts_left=max(0, 5 - attempts),
         pending_reset=pending_reset,
         verified_tab_only=False,
+        google_oauth_enabled=is_google_oauth_configured(),
     )
 
 
@@ -2655,7 +2810,7 @@ def dashboard():
     nudges = get_user_nudges(user_id)
 
     # Fetch real user profile fields from DB
-    db_user = db_query("SELECT headline, college, location, two_factor_enabled FROM users WHERE id = %s", (user_id,), fetchone=True) or {}
+    db_user = db_query("SELECT headline, college, location, two_factor_enabled, google_sub FROM users WHERE id = %s", (user_id,), fetchone=True) or {}
     user_headline = db_user.get("headline") or ""
     user_college = db_user.get("college") or ""
     user_location = db_user.get("location") or ""
@@ -2781,6 +2936,7 @@ def dashboard():
         active_page="dashboard",
         two_factor_enabled=bool(db_user.get("two_factor_enabled")),
         email_service_configured=is_email_service_configured(),
+        google_connected=bool(db_user.get("google_sub")),
         is_admin=session.get("is_admin", True)
     )
 
@@ -3845,6 +4001,7 @@ def user_profile():
     two_factor_enabled = bool(db_user.get("two_factor_enabled"))
     user_email = db_user.get("email") or ""
     has_password = bool(db_user.get("password_hash"))
+    google_connected = bool(db_user.get("google_sub"))
 
     return render_template(
         "profile.html",
@@ -3854,6 +4011,8 @@ def user_profile():
         two_factor_enabled=two_factor_enabled,
         user_email=user_email,
         email_service_configured=is_email_service_configured(),
+        google_connected=google_connected,
+        google_oauth_enabled=is_google_oauth_configured(),
         has_password=has_password,
     )
 

@@ -17,13 +17,13 @@
             {% if user_location %}<span>📍 {{ user_location }}</span>{% endif %}
             {% if user_college %}<span>🎓 {{ user_college }}</span>{% endif %}
             <span style="color:#D8CFBC;">🔥 {{ stats.streak_days }} Days Active Streak</span>
-            <a href="{{ url_for('user_profile') }}#security-2fa" style="text-decoration:none; font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:6px; background:{{ 'rgba(57,211,83,0.14)' if (two_factor_enabled and email_service_configured) else 'rgba(255,167,38,0.14)' }}; border:1px solid {{ 'rgba(57,211,83,0.35)' if (two_factor_enabled and email_service_configured) else 'rgba(255,167,38,0.35)' }}; color:{{ '#39d353' if (two_factor_enabled and email_service_configured) else '#ffa726' }};">
-              {% if not email_service_configured %}
-                ⚠️ Setup Email 2-Step Verification
-              {% elif two_factor_enabled %}
-                📧 Email 2-Step Verification On
+            <a href="{{ url_for('user_profile') }}#security-2fa" style="text-decoration:none; font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:6px; background:{{ 'rgba(57,211,83,0.14)' if (google_connected or (two_factor_enabled and email_service_configured)) else 'rgba(255,167,38,0.14)' }}; border:1px solid {{ 'rgba(57,211,83,0.35)' if (google_connected or (two_factor_enabled and email_service_configured)) else 'rgba(255,167,38,0.35)' }}; color:{{ '#39d353' if (google_connected or (two_factor_enabled and email_service_configured)) else '#ffa726' }};">
+              {% if google_connected %}
+                ✓ Google Verified
+              {% elif two_factor_enabled and email_service_configured %}
+                📧 Gmail 2-Step On
               {% else %}
-                🔓 Enable Email 2-Step Verification
+                🛡️ Security &amp; Gmail 2SV
               {% endif %}
             </a>
           </div>
